@@ -4,12 +4,12 @@
     "slug": "aggelos-rentals",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/fleetos-logos/icon-192.png",
+    "icon": "./assets/fleetos-logos/icon-1024.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "fleetos",
     "splash": {
-      "image": "./assets/fleetos-logos/icon-192.png",
+      "image": "./assets/fleetos-logos/icon-1024.png",
       "resizeMode": "contain",
       "backgroundColor": "#0f172a"
     },
@@ -26,7 +26,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/fleetos-logos/icon-192.png",
+        "foregroundImage": "./assets/fleetos-logos/icon-1024.png",
         "backgroundColor": "#0f172a"
       },
       "edgeToEdgeEnabled": true,
@@ -67,7 +67,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/fleetos-logos/icon-192.png",
+          "icon": "./assets/fleetos-logos/icon-1024.png",
           "color": "#0f172a",
           "sounds": [
             "./assets/notification-sound.wav"
