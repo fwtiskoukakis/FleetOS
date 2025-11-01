@@ -69,9 +69,6 @@
         {
           "icon": "./assets/fleetos-logos/icon-1024.png",
           "color": "#0f172a",
-          "sounds": [
-            "./assets/notification-sound.wav"
-          ],
           "androidMode": "default",
           "androidCollapsedTitle": "FleetOS Notifications"
         }
