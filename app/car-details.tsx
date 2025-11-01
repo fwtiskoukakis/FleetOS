@@ -15,12 +15,12 @@ interface Car {
   id: string;
   makeModel: string;
   licensePlate: string;
-  year: number;
-  fuelType: string;
-  transmission: string;
-  seats: number;
-  dailyRate: number;
-  isAvailable: boolean;
+  year: number | null;
+  fuelType: string | null;
+  transmission: string | null;
+  seats: number | null;
+  dailyRate: number | null;
+  isAvailable: boolean | null;
 }
 
 interface CarStats {
@@ -57,14 +57,14 @@ export default function CarDetailsScreen() {
 
       setCar({
         id: carData.id,
-        makeModel: carData.make_model,
-        licensePlate: carData.license_plate,
-        year: carData.year,
-        fuelType: carData.fuel_type,
-        transmission: carData.transmission,
-        seats: carData.seats,
-        dailyRate: carData.daily_rate,
-        isAvailable: carData.is_available,
+        makeModel: carData.make_model || (carData.make && carData.model ? `${carData.make} ${carData.model}` : carData.make || carData.model || 'Unknown'),
+        licensePlate: carData.license_plate || '',
+        year: carData.year ?? null,
+        fuelType: carData.fuel_type ?? null,
+        transmission: carData.transmission ?? null,
+        seats: carData.seats ?? null,
+        dailyRate: carData.daily_rate ?? null,
+        isAvailable: carData.is_available ?? true,
       });
 
       const { data: contracts } = await supabase.from('contracts').select('total_cost').eq('car_license_plate', carData.license_plate);
@@ -120,8 +120,8 @@ export default function CarDetailsScreen() {
   }
 
   function handleEdit() {
-    // TODO: Create edit-car page or modal
-    Alert.alert('Επεξεργασία', 'Η λειτουργία επεξεργασίας αυτοκινήτου θα είναι σύντομα διαθέσιμη.');
+    if (!car) return;
+    router.push(`/add-edit-vehicle?vehicleId=${car.id}`);
   }
 
   if (!car) {
@@ -158,20 +158,20 @@ export default function CarDetailsScreen() {
 
       <ScrollView style={s.content} {...smoothScrollConfig} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         <View style={s.statusCard}>
-          <View style={[s.statusDot, { backgroundColor: car.isAvailable ? Colors.success : Colors.error }]} />
-          <Text style={s.statusText}>{car.isAvailable ? 'Διαθέσιμο' : 'Μη Διαθέσιμο'}</Text>
+          <View style={[s.statusDot, { backgroundColor: (car.isAvailable ?? true) ? Colors.success : Colors.error }]} />
+          <Text style={s.statusText}>{(car.isAvailable ?? true) ? 'Διαθέσιμο' : 'Μη Διαθέσιμο'}</Text>
         </View>
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>Πληροφορίες</Text>
           <View style={s.card}>
-            <InfoRow icon="car" label="Οχημα" value={car.makeModel} />
-            <InfoRow icon="pricetag" label="Πινακίδα" value={car.licensePlate} />
-            <InfoRow icon="calendar" label="Ετος" value={car.year.toString()} />
-            <InfoRow icon="flash" label="Καύσιμο" value={car.fuelType} />
-            <InfoRow icon="settings" label="Κιβώτιο" value={car.transmission} />
-            <InfoRow icon="people" label="Θέσεις" value={car.seats.toString()} />
-            <InfoRow icon="cash" label="Ημερήσια Τιμή" value={`€${car.dailyRate}`} />
+            <InfoRow icon="car" label="Οχημα" value={car.makeModel || 'N/A'} />
+            <InfoRow icon="pricetag" label="Πινακίδα" value={car.licensePlate || 'N/A'} />
+            <InfoRow icon="calendar" label="Ετος" value={car.year?.toString() || 'N/A'} />
+            <InfoRow icon="flash" label="Καύσιμο" value={car.fuelType || 'N/A'} />
+            <InfoRow icon="settings" label="Κιβώτιο" value={car.transmission || 'N/A'} />
+            <InfoRow icon="people" label="Θέσεις" value={car.seats?.toString() || 'N/A'} />
+            <InfoRow icon="cash" label="Ημερήσια Τιμή" value={car.dailyRate ? `€${car.dailyRate}` : 'N/A'} />
           </View>
         </View>
 

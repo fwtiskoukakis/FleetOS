@@ -41,6 +41,9 @@ export default function AddEditVehicleScreen() {
     currentMileage: 0,
     status: 'available' as VehicleStatus,
     
+    // GPS Tracking
+    hasGps: false,
+    
     // KTEO
     kteoLastDate: null as Date | null,
     kteoExpiryDate: null as Date | null,
@@ -81,12 +84,13 @@ export default function AddEditVehicleScreen() {
         setFormData({
           make: vehicle.make,
           model: vehicle.model,
-          year: vehicle.year,
+          year: vehicle.year || new Date().getFullYear(),
           licensePlate: vehicle.licensePlate,
           color: vehicle.color || '',
           category: vehicle.category || 'car',
-          currentMileage: vehicle.currentMileage,
+          currentMileage: vehicle.currentMileage ?? 0,
           status: vehicle.status,
+          hasGps: vehicle.hasGps || false,
           kteoLastDate: vehicle.kteoLastDate,
           kteoExpiryDate: vehicle.kteoExpiryDate,
           insuranceType: vehicle.insuranceType || 'basic',
@@ -137,6 +141,7 @@ export default function AddEditVehicleScreen() {
         category: formData.category,
         currentMileage: formData.currentMileage,
         status: formData.status,
+        hasGps: formData.hasGps,
         kteoLastDate: formData.kteoLastDate,
         kteoExpiryDate: formData.kteoExpiryDate,
         insuranceType: formData.insuranceType,
@@ -281,7 +286,7 @@ export default function AddEditVehicleScreen() {
               <Text style={s.label}>Έτος</Text>
               <TextInput
                 style={s.input}
-                value={formData.year.toString()}
+                value={formData.year?.toString() || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, year: parseInt(text) || new Date().getFullYear() }))}
                 placeholder="2023"
                 keyboardType="numeric"
@@ -300,11 +305,24 @@ export default function AddEditVehicleScreen() {
           <Text style={s.label}>Τρέχοντα Χιλιόμετρα</Text>
           <TextInput
             style={s.input}
-            value={formData.currentMileage.toString()}
+            value={formData.currentMileage?.toString() || '0'}
             onChangeText={(text) => setFormData(prev => ({ ...prev, currentMileage: parseInt(text) || 0 }))}
             placeholder="50000"
             keyboardType="numeric"
           />
+
+          <View style={s.switchRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="location" size={20} color={Colors.primary} />
+              <Text style={s.label}>GPS Tracking</Text>
+            </View>
+            <Switch
+              value={formData.hasGps}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, hasGps: value }))}
+              trackColor={{ false: '#e5e7eb', true: Colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
         </View>
 
         {/* KTEO */}

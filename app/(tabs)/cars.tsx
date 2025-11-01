@@ -10,9 +10,11 @@ import {
   TextInput,
   FlatList,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Breadcrumb } from '../../components/breadcrumb';
 import { SimpleGlassCard } from '../../components/glass-card';
 import { Colors, Typography, Shadows, Glass } from '../../utils/design-system';
@@ -20,11 +22,20 @@ import { smoothScrollConfig } from '../../utils/animations';
 import { VehicleService } from '../../services/vehicle.service';
 import { Vehicle, VehicleStatus } from '../../models/vehicle.interface';
 import { calculateExpiryUrgency, calculateServiceUrgency } from '../../utils/maintenance-urgency';
+import { supabase } from '../../utils/supabase';
 
 const { width } = Dimensions.get('window');
 const CARD_MARGIN = 8;
 
 type GridStyle = 'list' | 'grid3' | 'grid4' | 'grid5';
+type SortOption = 
+  | 'default' 
+  | 'urgent' 
+  | 'kteo_due' 
+  | 'insurance_due' 
+  | 'tires_due' 
+  | 'tires_recent' 
+  | 'service_due';
 
 const getGridConfig = (style: GridStyle) => {
   switch (style) {
@@ -49,17 +60,115 @@ export default function CarsScreen() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'available' | 'rented' | 'maintenance'>('all');
   const [gridStyle, setGridStyle] = useState<GridStyle>('grid5');
+  const [sortBy, setSortBy] = useState<SortOption>('default');
+  
+  // Date/Time pickers for availability filtering
+  const [pickupDate, setPickupDate] = useState<Date>(new Date());
+  const [pickupTime, setPickupTime] = useState<Date>(new Date());
+  const [dropoffDate, setDropoffDate] = useState<Date>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date;
+  });
+  const [dropoffTime, setDropoffTime] = useState<Date>(new Date());
+  const [showPickupDatePicker, setShowPickupDatePicker] = useState(false);
+  const [showPickupTimePicker, setShowPickupTimePicker] = useState(false);
+  const [showDropoffDatePicker, setShowDropoffDatePicker] = useState(false);
+  const [showDropoffTimePicker, setShowDropoffTimePicker] = useState(false);
+  const [filterByAvailability, setFilterByAvailability] = useState(false);
+  const [availableVehicles, setAvailableVehicles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadCars();
   }, []);
 
   useEffect(() => {
-    filterCars();
-  }, [vehicles, search, filter]);
+    if (filterByAvailability) {
+      checkVehicleAvailability();
+    } else {
+      filterCars();
+    }
+  }, [vehicles, search, filter, sortBy, filterByAvailability, pickupDate, pickupTime, dropoffDate, dropoffTime]);
+
+  // Check which vehicles are available during selected period
+  async function checkVehicleAvailability() {
+    if (!filterByAvailability) {
+      filterCars();
+      return;
+    }
+
+    try {
+      // Combine date and time for pickup and dropoff
+      const pickupDateTime = new Date(pickupDate);
+      pickupDateTime.setHours(pickupTime.getHours(), pickupTime.getMinutes(), 0, 0);
+      
+      const dropoffDateTime = new Date(dropoffDate);
+      dropoffDateTime.setHours(dropoffTime.getHours(), dropoffTime.getMinutes(), 0, 0);
+
+      // Get all active contracts that might overlap
+      const { data: contracts, error } = await supabase
+        .from('contracts')
+        .select('car_license_plate, pickup_date, pickup_time, dropoff_date, dropoff_time, status')
+        .in('status', ['active', 'upcoming']);
+
+      if (error) {
+        console.error('Error fetching contracts for availability:', error);
+        filterCars();
+        return;
+      }
+
+      // Check each vehicle for conflicts
+      const available = new Set<string>();
+      
+      for (const vehicle of vehicles) {
+        // Skip maintenance vehicles
+        if (vehicle.status === 'maintenance') {
+          continue;
+        }
+
+        // Check if vehicle has overlapping contracts
+        const hasConflict = contracts?.some(contract => {
+          if (contract.car_license_plate?.toUpperCase() !== vehicle.licensePlate.toUpperCase()) {
+            return false;
+          }
+
+          // Parse contract dates/times
+          const contractPickup = new Date(contract.pickup_date);
+          const [pickupH, pickupM] = (contract.pickup_time || '00:00').split(':');
+          contractPickup.setHours(parseInt(pickupH) || 0, parseInt(pickupM) || 0, 0, 0);
+
+          const contractDropoff = new Date(contract.dropoff_date);
+          const [dropoffH, dropoffM] = (contract.dropoff_time || '23:59').split(':');
+          contractDropoff.setHours(parseInt(dropoffH) || 23, parseInt(dropoffM) || 59, 0, 0);
+
+          // Check for overlap: user pickup < contract dropoff AND user dropoff > contract pickup
+          return pickupDateTime < contractDropoff && dropoffDateTime > contractPickup;
+        });
+
+        if (!hasConflict) {
+          available.add(vehicle.id);
+        }
+      }
+
+      setAvailableVehicles(available);
+      filterCars();
+    } catch (error) {
+      console.error('Error checking vehicle availability:', error);
+      filterCars();
+    }
+  }
 
   async function loadCars() {
     try {
+      // First sync all vehicles from contracts to ensure none are missing
+      try {
+        await VehicleService.syncAllVehiclesFromContracts();
+      } catch (syncError) {
+        console.error('Error syncing vehicles from contracts:', syncError);
+        // Continue loading even if sync fails
+      }
+      
+      // Then load all vehicles
       const data = await VehicleService.getAllVehiclesWithUpdatedAvailability();
       setVehicles(data);
     } catch (error) {
@@ -92,11 +201,54 @@ export default function CarsScreen() {
     );
   }
 
+  function getMostUrgentMaintenance(vehicle: Vehicle): { priority: number; label: string } {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const urgencies: Array<{ date: Date | null; priority: number; label: string }> = [];
+    
+    if (vehicle.kteoExpiryDate) {
+      const days = Math.floor((vehicle.kteoExpiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      urgencies.push({ date: vehicle.kteoExpiryDate, priority: days < 0 ? 0 : days, label: 'KTEO' });
+    }
+    
+    if (vehicle.insuranceExpiryDate) {
+      const days = Math.floor((vehicle.insuranceExpiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      urgencies.push({ date: vehicle.insuranceExpiryDate, priority: days < 0 ? 0 : days, label: 'Ασφάλεια' });
+    }
+    
+    if (vehicle.tiresNextChangeDate) {
+      const days = Math.floor((vehicle.tiresNextChangeDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      urgencies.push({ date: vehicle.tiresNextChangeDate, priority: days < 0 ? 0 : days, label: 'Λάστιχα' });
+    }
+    
+    if (vehicle.nextServiceMileage && vehicle.currentMileage) {
+      const km = vehicle.nextServiceMileage - vehicle.currentMileage;
+      urgencies.push({ date: null, priority: km < 0 ? 0 : km, label: 'Σέρβις' });
+    }
+    
+    if (urgencies.length === 0) {
+      return { priority: 9999, label: 'OK' };
+    }
+    
+    urgencies.sort((a, b) => a.priority - b.priority);
+    return urgencies[0];
+  }
+
   function filterCars() {
     let result = vehicles;
+    
+    // Apply availability filter if enabled
+    if (filterByAvailability && availableVehicles.size > 0) {
+      result = result.filter(v => availableVehicles.has(v.id));
+    }
+    
+    // Apply status filter
     if (filter === 'available') result = result.filter(v => v.status === 'available');
     if (filter === 'rented') result = result.filter(v => v.status === 'rented');
     if (filter === 'maintenance') result = result.filter(v => v.status === 'maintenance');
+    
+    // Apply search
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(v =>
@@ -105,6 +257,64 @@ export default function CarsScreen() {
         v.licensePlate.toLowerCase().includes(q)
       );
     }
+    
+    // Apply sorting
+    switch (sortBy) {
+      case 'kteo_due':
+        result.sort((a, b) => {
+          if (!a.kteoExpiryDate && !b.kteoExpiryDate) return 0;
+          if (!a.kteoExpiryDate) return 1;
+          if (!b.kteoExpiryDate) return -1;
+          return a.kteoExpiryDate.getTime() - b.kteoExpiryDate.getTime();
+        });
+        break;
+      case 'insurance_due':
+        result.sort((a, b) => {
+          if (!a.insuranceExpiryDate && !b.insuranceExpiryDate) return 0;
+          if (!a.insuranceExpiryDate) return 1;
+          if (!b.insuranceExpiryDate) return -1;
+          return a.insuranceExpiryDate.getTime() - b.insuranceExpiryDate.getTime();
+        });
+        break;
+      case 'tires_due':
+        result.sort((a, b) => {
+          if (!a.tiresNextChangeDate && !b.tiresNextChangeDate) return 0;
+          if (!a.tiresNextChangeDate) return 1;
+          if (!b.tiresNextChangeDate) return -1;
+          return a.tiresNextChangeDate.getTime() - b.tiresNextChangeDate.getTime();
+        });
+        break;
+      case 'tires_recent':
+        result.sort((a, b) => {
+          const aDate = a.tiresFrontDate || a.tiresRearDate;
+          const bDate = b.tiresFrontDate || b.tiresRearDate;
+          if (!aDate && !bDate) return 0;
+          if (!aDate) return 1;
+          if (!bDate) return -1;
+          return bDate.getTime() - aDate.getTime(); // Most recent first
+        });
+        break;
+      case 'service_due':
+        result.sort((a, b) => {
+          if (!a.nextServiceMileage && !b.nextServiceMileage) return 0;
+          if (!a.nextServiceMileage) return 1;
+          if (!b.nextServiceMileage) return -1;
+          return a.nextServiceMileage - b.nextServiceMileage;
+        });
+        break;
+      case 'urgent':
+        // Sort by most urgent maintenance item
+        result.sort((a, b) => {
+          const aUrgency = getMostUrgentMaintenance(a);
+          const bUrgency = getMostUrgentMaintenance(b);
+          return aUrgency.priority - bUrgency.priority;
+        });
+        break;
+      default:
+        // Default: sort by license plate
+        result.sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
+    }
+    
     setFiltered(result);
   }
 
@@ -132,7 +342,12 @@ export default function CarsScreen() {
         {/* Grid Style Selector */}
         <View style={s.gridStyleSelector}>
           <Text style={s.gridStyleLabel}>Προβολή:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.gridStyleButtons}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={s.gridStyleButtons}
+            contentContainerStyle={s.gridStyleButtonsContent}
+          >
             {([
               ['list', 'Λίστα', 'list-outline'],
               ['grid3', '3x', 'grid-outline'],
@@ -157,7 +372,12 @@ export default function CarsScreen() {
           </ScrollView>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filters}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={s.filters}
+          contentContainerStyle={s.filtersContent}
+        >
           {([['all', 'Ολα'], ['available', 'Διαθέσιμα'], ['rented', 'Ενοικιασμένα'], ['maintenance', 'Συντήρηση']] as const).map(([f, label]) => (
             <TouchableOpacity key={f} style={[s.filterBtn, filter === f && s.filterBtnActive]} onPress={() => setFilter(f)}>
               <Text style={[s.filterText, filter === f && s.filterTextActive]}>
@@ -167,6 +387,185 @@ export default function CarsScreen() {
           ))}
         </ScrollView>
       </View>
+
+      {/* Availability Filter Section */}
+      <View style={s.availabilitySection}>
+        <View style={s.availabilityHeader}>
+          <TouchableOpacity
+            style={[s.availabilityToggle, filterByAvailability && s.availabilityToggleActive]}
+            onPress={() => setFilterByAvailability(!filterByAvailability)}
+          >
+            <Ionicons 
+              name={filterByAvailability ? "checkmark-circle" : "checkmark-circle-outline"} 
+              size={18} 
+              color={filterByAvailability ? '#fff' : Colors.textSecondary} 
+            />
+            <Text style={[s.availabilityToggleText, filterByAvailability && s.availabilityToggleTextActive]}>
+              Φίλτρο Διαθεσιμότητας
+            </Text>
+          </TouchableOpacity>
+          {filterByAvailability && (
+            <TouchableOpacity
+              style={s.clearAvailabilityButton}
+              onPress={() => {
+                setFilterByAvailability(false);
+                setAvailableVehicles(new Set());
+              }}
+            >
+              <Ionicons name="close-circle" size={18} color={Colors.error} />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {filterByAvailability && (
+          <View style={s.dateTimePickerContainer}>
+            {/* Pickup Date/Time */}
+            <View style={s.dateTimeRow}>
+              <Text style={s.dateTimeLabel}>Ανάληψη:</Text>
+              <TouchableOpacity 
+                style={s.dateTimeButton}
+                onPress={() => setShowPickupDatePicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+                <Text style={s.dateTimeText}>
+                  {pickupDate.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={s.dateTimeButton}
+                onPress={() => setShowPickupTimePicker(true)}
+              >
+                <Ionicons name="time-outline" size={16} color={Colors.primary} />
+                <Text style={s.dateTimeText}>
+                  {pickupTime.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Dropoff Date/Time */}
+            <View style={s.dateTimeRow}>
+              <Text style={s.dateTimeLabel}>Επιστροφή:</Text>
+              <TouchableOpacity 
+                style={s.dateTimeButton}
+                onPress={() => setShowDropoffDatePicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+                <Text style={s.dateTimeText}>
+                  {dropoffDate.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={s.dateTimeButton}
+                onPress={() => setShowDropoffTimePicker(true)}
+              >
+                <Ionicons name="time-outline" size={16} color={Colors.primary} />
+                <Text style={s.dateTimeText}>
+                  {dropoffTime.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Sorting Bar */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        style={s.sortBar}
+        contentContainerStyle={s.sortBarContent}
+      >
+        <Text style={s.sortLabel}>Ταξινόμηση:</Text>
+        {([
+          ['default', 'Προεπιλογή', 'swap-vertical'],
+          ['urgent', 'Επείγοντα', 'warning'],
+          ['kteo_due', 'KTEO Λήξη', 'calendar'],
+          ['insurance_due', 'Ασφάλεια', 'shield'],
+          ['tires_due', 'Λάστιχα Λήξη', 'ellipse'],
+          ['tires_recent', 'Πρόσφατα Λάστιχα', 'time'],
+          ['service_due', 'Σέρβις', 'construct'],
+        ] as const).map(([sort, label, icon]) => (
+          <TouchableOpacity
+            key={sort}
+            style={[s.sortBtn, sortBy === sort && s.sortBtnActive]}
+            onPress={() => setSortBy(sort as SortOption)}
+          >
+            <Ionicons
+              name={icon as any}
+              size={14}
+              color={sortBy === sort ? '#fff' : Colors.textSecondary}
+            />
+            <Text style={[s.sortText, sortBy === sort && s.sortTextActive]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Date/Time Pickers */}
+      {showPickupDatePicker && (
+        <DateTimePicker
+          value={pickupDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowPickupDatePicker(Platform.OS === 'ios');
+            if (selectedDate) {
+              setPickupDate(selectedDate);
+              if (selectedDate > dropoffDate) {
+                const newDropoff = new Date(selectedDate);
+                newDropoff.setDate(newDropoff.getDate() + 1);
+                setDropoffDate(newDropoff);
+              }
+            }
+          }}
+          minimumDate={new Date()}
+        />
+      )}
+      {showPickupTimePicker && (
+        <DateTimePicker
+          value={pickupTime}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedTime) => {
+            setShowPickupTimePicker(Platform.OS === 'ios');
+            if (selectedTime) {
+              setPickupTime(selectedTime);
+            }
+          }}
+        />
+      )}
+      {showDropoffDatePicker && (
+        <DateTimePicker
+          value={dropoffDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowDropoffDatePicker(Platform.OS === 'ios');
+            if (selectedDate) {
+              if (selectedDate < pickupDate) {
+                Alert.alert('Σφάλμα', 'Η ημερομηνία επιστροφής πρέπει να είναι μετά την ανάληψη');
+                return;
+              }
+              setDropoffDate(selectedDate);
+            }
+          }}
+          minimumDate={pickupDate}
+        />
+      )}
+      {showDropoffTimePicker && (
+        <DateTimePicker
+          value={dropoffTime}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedTime) => {
+            setShowDropoffTimePicker(Platform.OS === 'ios');
+            if (selectedTime) {
+              setDropoffTime(selectedTime);
+            }
+          }}
+        />
+      )}
 
       <FlatList
         key={gridStyle} // Force re-render when grid style changes
@@ -215,6 +614,9 @@ export default function CarsScreen() {
                   <View style={s.listLeft}>
                     <View style={s.listNameRow}>
                       <Text style={s.listName} numberOfLines={1}>{vehicle.make} {vehicle.model}</Text>
+                      {vehicle.hasGps && (
+                        <Ionicons name="location" size={14} color="#22D3EE" style={s.gpsIcon} />
+                      )}
                       {hasUrgentMaintenance && (
                         <Ionicons name="warning" size={16} color="#FF9500" style={s.warningIcon} />
                       )}
@@ -280,7 +682,12 @@ export default function CarsScreen() {
             >
               <View style={s.gridCardContent}>
                 <View style={s.gridCardHeader}>
-                  <View style={[s.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />
+                  <View style={s.gridCardHeaderLeft}>
+                    <View style={[s.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />
+                    {vehicle.hasGps && (
+                      <Ionicons name="location" size={10} color="#22D3EE" style={s.gpsIcon} />
+                    )}
+                  </View>
                   <TouchableOpacity
                     style={s.deleteButton}
                     onPress={(e) => {
@@ -323,7 +730,8 @@ const s = StyleSheet.create({
   // Grid Style Selector
   gridStyleSelector: { marginBottom: 8 },
   gridStyleLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600', marginBottom: 4 },
-  gridStyleButtons: { flexDirection: 'row', gap: 6 },
+  gridStyleButtons: {},
+  gridStyleButtonsContent: { flexDirection: 'row', gap: 6 },
   gridStyleBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -338,11 +746,119 @@ const s = StyleSheet.create({
   gridStyleText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
   gridStyleTextActive: { color: '#fff' },
   
-  filters: { flexDirection: 'row', gap: 6 },
+  filters: {},
+  filtersContent: { flexDirection: 'row', gap: 6 },
   filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', marginRight: 6 },
   filterBtnActive: { backgroundColor: Colors.primary },
   filterText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
   filterTextActive: { color: '#fff' },
+  
+  // Sorting Bar
+  sortBar: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  sortBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  sortLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginRight: 8,
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    marginRight: 6,
+    gap: 4,
+  },
+  sortBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  sortText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  sortTextActive: {
+    color: '#fff',
+  },
+  
+  // Availability Filter Section
+  availabilitySection: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  availabilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  availabilityToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    gap: 6,
+  },
+  availabilityToggleActive: {
+    backgroundColor: Colors.primary,
+  },
+  availabilityToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  availabilityToggleTextActive: {
+    color: '#fff',
+  },
+  clearAvailabilityButton: {
+    padding: 4,
+  },
+  dateTimePickerContainer: {
+    gap: 8,
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateTimeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    minWidth: 70,
+  },
+  dateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    gap: 4,
+    flex: 1,
+  },
+  dateTimeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text,
+  },
   
   list: { flex: 1, padding: CARD_MARGIN },
   listContent: { paddingBottom: 100 },
@@ -364,6 +880,14 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  gridCardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  gpsIcon: {
+    marginLeft: 2,
   },
   gridCardBody: {
     flex: 1,

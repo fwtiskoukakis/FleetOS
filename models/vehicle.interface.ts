@@ -37,6 +37,9 @@ export interface Vehicle {
   currentMileage: number;
   status: VehicleStatus;
   
+  // GPS Tracking
+  hasGps?: boolean;
+  
   // KTEO Information
   kteoLastDate?: Date | null;
   kteoExpiryDate?: Date | null;
@@ -89,5 +92,22 @@ export interface VehicleSummary {
   totalContracts: number;
   totalDamages: number;
   recentDamages: VehicleDamageHistoryItem[];
+}
+
+/**
+ * Service History Item
+ */
+export interface ServiceHistoryItem {
+  id: string;
+  vehicleId: string;
+  serviceType: 'regular' | 'tire_change' | 'kteo' | 'insurance' | 'other';
+  serviceDate: Date;
+  serviceMileage?: number | null;
+  description?: string | null;
+  cost?: number | null;
+  performedBy?: string | null;
+  notes?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 

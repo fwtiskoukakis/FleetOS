@@ -39,32 +39,75 @@ export class PhotoStorageService {
 
       console.log('Generated filename:', fileName);
 
-      // Create FormData for file upload (React Native compatible)
-      const formData = new FormData();
-      
-      // Add the file with proper structure for React Native
-      formData.append('file', {
-        uri: photoUri,
-        name: fileName,
-        type: 'image/jpeg',
-      } as any);
+      // Read file as base64 and convert to ArrayBuffer for Supabase
+      console.log('Reading file from:', photoUri);
+      const base64 = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-      console.log('FormData created for upload');
+      console.log('File read as base64, length:', base64.length);
 
-      // Upload to Supabase Storage using FormData
-      const { data, error } = await supabase.storage
-        .from(this.BUCKET_CONTRACT_PHOTOS)
-        .upload(fileName, formData, {
-          contentType: 'image/jpeg',
-          cacheControl: '3600',
-          upsert: false,
-        });
+      // Convert base64 to ArrayBuffer (React Native compatible)
+      const arrayBuffer = this.base64ToArrayBuffer(base64);
 
-      if (error) {
-        console.error('Error uploading to storage:', error);
-        throw new Error(`Upload failed: ${error.message}`);
+      console.log('Converted to ArrayBuffer, size:', arrayBuffer.byteLength, 'bytes');
+
+      // Get Supabase URL and key for direct fetch
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase configuration missing');
       }
 
+      // Get user session token for authenticated requests (required for RLS)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.access_token) {
+        throw new Error('User not authenticated. Please sign in to upload photos.');
+      }
+
+      // Encode individual path segments but preserve slashes
+      // Supabase Storage expects: /storage/v1/object/{bucket}/{path}
+      // Path can contain slashes, so we encode each segment
+      const pathSegments = fileName.split('/').map(segment => encodeURIComponent(segment));
+      const encodedPath = pathSegments.join('/');
+      
+      // Get the storage endpoint URL (Supabase Storage API format)
+      const storageUrl = `${supabaseUrl}/storage/v1/object/${this.BUCKET_CONTRACT_PHOTOS}/${encodedPath}`;
+      
+      console.log('Uploading to:', storageUrl);
+
+      // Convert ArrayBuffer to Uint8Array for fetch (React Native compatible)
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Upload using fetch API directly (more reliable on React Native)
+      // Use user's access token for RLS policies to work
+      const response = await fetch(storageUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`, // User's session token for RLS
+          'Content-Type': 'image/jpeg',
+          'apikey': supabaseKey,
+          'x-upsert': 'false',
+          'cache-control': '3600',
+        },
+        body: uint8Array,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed:', response.status, errorText);
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        // Response might not be JSON, that's okay
+        data = { path: fileName };
+      }
+      
       console.log('Storage upload successful:', data);
 
       // Get public URL
@@ -107,17 +150,17 @@ export class PhotoStorageService {
       const timestamp = Date.now();
       const fileName = `${vehicleId}/${photoType}_${timestamp}.jpg`;
       
-      // Create FormData for file upload (React Native compatible)
-      const formData = new FormData();
-      formData.append('file', {
-        uri: photoUri,
-        name: fileName,
-        type: 'image/jpeg',
-      } as any);
+      // Read file as base64 and convert to ArrayBuffer for Supabase
+      const base64 = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Convert base64 to ArrayBuffer (React Native compatible)
+      const arrayBuffer = this.base64ToArrayBuffer(base64);
       
       const { data, error } = await supabase.storage
         .from(this.BUCKET_CAR_PHOTOS)
-        .upload(fileName, formData, {
+        .upload(fileName, arrayBuffer, {
           contentType: 'image/jpeg',
           cacheControl: '3600',
           upsert: false,
@@ -162,17 +205,17 @@ export class PhotoStorageService {
       const timestamp = Date.now();
       const fileName = `${vehicleId}/damage_${damageId}_${timestamp}.jpg`;
       
-      // Create FormData for file upload (React Native compatible)
-      const formData = new FormData();
-      formData.append('file', {
-        uri: photoUri,
-        name: fileName,
-        type: 'image/jpeg',
-      } as any);
+      // Read file as base64 and convert to ArrayBuffer for Supabase
+      const base64 = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Convert base64 to ArrayBuffer (React Native compatible)
+      const arrayBuffer = this.base64ToArrayBuffer(base64);
       
       const { data, error } = await supabase.storage
         .from(this.BUCKET_CAR_PHOTOS)
-        .upload(fileName, formData, {
+        .upload(fileName, arrayBuffer, {
           contentType: 'image/jpeg',
           cacheControl: '3600',
           upsert: false,
@@ -217,17 +260,17 @@ export class PhotoStorageService {
       const timestamp = Date.now();
       const fileName = `${userId}/${signatureType}_signature_${timestamp}.png`;
       
-      // Create FormData for file upload (React Native compatible)
-      const formData = new FormData();
-      formData.append('file', {
-        uri: signatureUri,
-        name: fileName,
-        type: 'image/png',
-      } as any);
+      // Read file as base64 and convert to ArrayBuffer for Supabase
+      const base64 = await FileSystem.readAsStringAsync(signatureUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Convert base64 to ArrayBuffer (React Native compatible)
+      const arrayBuffer = this.base64ToArrayBuffer(base64);
       
       const { data, error } = await supabase.storage
         .from(this.BUCKET_SIGNATURES)
-        .upload(fileName, formData, {
+        .upload(fileName, arrayBuffer, {
           contentType: 'image/png',
           cacheControl: '3600',
           upsert: false,
@@ -557,6 +600,47 @@ export class PhotoStorageService {
       console.error('Error in savePhotoMetadataWithType:', error);
       throw error;
     }
+  }
+
+  /**
+   * Convert base64 string to ArrayBuffer (React Native compatible)
+   * React Native doesn't have atob, so we use a manual conversion
+   */
+  private static base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const lookup = new Uint8Array(256);
+    for (let i = 0; i < chars.length; i++) {
+      lookup[chars.charCodeAt(i)] = i;
+    }
+
+    // Calculate buffer length accounting for padding
+    let bufferLength = base64.length * 0.75;
+    if (base64.length > 0 && base64[base64.length - 1] === '=') {
+      bufferLength--;
+      if (base64.length > 1 && base64[base64.length - 2] === '=') {
+        bufferLength--;
+      }
+    }
+
+    const bytes = new Uint8Array(bufferLength);
+    let p = 0;
+
+    for (let i = 0; i < base64.length; i += 4) {
+      const encoded1 = lookup[base64.charCodeAt(i)] ?? 0;
+      const encoded2 = lookup[base64.charCodeAt(i + 1)] ?? 0;
+      const encoded3 = i + 2 < base64.length ? (lookup[base64.charCodeAt(i + 2)] ?? 0) : 0;
+      const encoded4 = i + 3 < base64.length ? (lookup[base64.charCodeAt(i + 3)] ?? 0) : 0;
+
+      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+      if (i + 2 < base64.length && base64[i + 2] !== '=') {
+        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+      }
+      if (i + 3 < base64.length && base64[i + 3] !== '=') {
+        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+      }
+    }
+
+    return bytes.buffer;
   }
 
   /**

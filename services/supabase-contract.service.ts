@@ -2,6 +2,7 @@ import { supabase } from '../utils/supabase';
 import { Contract } from '../models/contract.interface';
 import { PhotoStorageService } from './photo-storage.service';
 import { updateVehicleAvailability } from '../utils/vehicle-availability';
+import { VehicleService } from './vehicle.service';
 
 /**
  * Supabase Contract Service
@@ -559,6 +560,29 @@ export class SupabaseContractService {
         }
       }
 
+      // Auto-sync vehicle from contract (create if doesn't exist)
+      if (contract.carInfo.licensePlate) {
+        try {
+          // Parse make and model from makeModel string (format: "Make Model")
+          const makeModelParts = contract.carInfo.makeModel.split(' ');
+          const make = makeModelParts[0] || 'Unknown';
+          const model = makeModelParts.slice(1).join(' ') || 'Unknown';
+          
+          await VehicleService.syncVehicleFromContract(
+            contract.carInfo.licensePlate,
+            make,
+            model,
+            contract.carInfo.year,
+            contract.carInfo.color,
+            contract.carInfo.category
+          );
+          console.log(`✅ Synced vehicle ${contract.carInfo.licensePlate} from contract`);
+        } catch (error) {
+          console.error('Error syncing vehicle from contract:', error);
+          // Don't throw, contract is already saved
+        }
+      }
+
       // Update vehicle availability based on active contracts
       try {
         await updateVehicleAvailability();
@@ -723,6 +747,29 @@ export class SupabaseContractService {
           } catch (error) {
             console.error('Error updating contract photos:', error);
           }
+        }
+      }
+
+      // Auto-sync vehicle from contract (create if doesn't exist)
+      if (contract.carInfo?.licensePlate) {
+        try {
+          // Parse make and model from makeModel string (format: "Make Model")
+          const makeModelParts = contract.carInfo.makeModel?.split(' ') || [];
+          const make = makeModelParts[0] || 'Unknown';
+          const model = makeModelParts.slice(1).join(' ') || 'Unknown';
+          
+          await VehicleService.syncVehicleFromContract(
+            contract.carInfo.licensePlate,
+            make,
+            model,
+            contract.carInfo.year,
+            contract.carInfo.color,
+            contract.carInfo.category
+          );
+          console.log(`✅ Synced vehicle ${contract.carInfo.licensePlate} from contract update`);
+        } catch (error) {
+          console.error('Error syncing vehicle from contract update:', error);
+          // Don't throw, contract is already updated
         }
       }
 

@@ -3,14 +3,24 @@
 -- Allows authenticated users to upload photos without folder restrictions
 -- ==============================================
 
--- Drop existing policies for contract-photos
-DROP POLICY IF EXISTS "Authenticated users can upload contract photos" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can view contract photos" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update their contract photos" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete their contract photos" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update own contract photos" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete own contract photos" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can view contract photos" ON storage.objects;
+-- Drop ALL existing policies for contract-photos bucket first
+-- This ensures we start with a clean slate
+DO $$ 
+DECLARE
+  policy_record RECORD;
+BEGIN
+  -- Find and drop all policies that might be related to contract-photos
+  FOR policy_record IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'storage' 
+    AND tablename = 'objects'
+    AND (policyname ILIKE '%contract%photo%' OR policyname ILIKE '%contract-photos%')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', policy_record.policyname);
+    RAISE NOTICE 'Dropped policy: %', policy_record.policyname;
+  END LOOP;
+END $$;
 
 -- Simple INSERT policy: Allow any authenticated user to upload to contract-photos bucket
 CREATE POLICY "Authenticated users can upload contract photos"

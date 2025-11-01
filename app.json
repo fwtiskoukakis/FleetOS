@@ -4,12 +4,12 @@
     "slug": "aggelos-rentals",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/fleetos-logos/icon-192.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "fleetos",
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/fleetos-logos/icon-192.png",
       "resizeMode": "contain",
       "backgroundColor": "#0f172a"
     },
@@ -26,7 +26,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/fleetos-logos/icon-192.png",
         "backgroundColor": "#0f172a"
       },
       "edgeToEdgeEnabled": true,
@@ -67,9 +67,11 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo.png",
+          "icon": "./assets/fleetos-logos/icon-192.png",
           "color": "#0f172a",
-          "sounds": ["./assets/notification-sound.wav"],
+          "sounds": [
+            "./assets/notification-sound.wav"
+          ],
           "androidMode": "default",
           "androidCollapsedTitle": "FleetOS Notifications"
         }
@@ -78,6 +80,9 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "a6637ee8-bc8c-4f5a-9e37-738726804863"
       }
     },
     "privacy": "public"
