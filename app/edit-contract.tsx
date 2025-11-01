@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -146,6 +146,8 @@ export default function EditContractScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, // Works on both iOS and Android
       quality: 0.7,
       base64: false,
     });
@@ -164,6 +166,8 @@ export default function EditContractScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, // Works on both iOS and Android
       allowsMultipleSelection: false,
       quality: 0.8,
       base64: false,
@@ -381,6 +385,11 @@ export default function EditContractScreen() {
       });
     }
   };
+
+  // Callback for photo changes - must be at top level (Rules of Hooks)
+  const handlePhotosChanged = useCallback((count: number) => {
+    console.log(`Contract has ${count} photos`);
+  }, []);
 
   if (loading) {
     return (
@@ -734,7 +743,7 @@ export default function EditContractScreen() {
         {/* 5. Photos */}
         <ContractPhotoUploader
           contractId={contract.id}
-          onPhotosChanged={(count) => console.log(`Contract has ${count} photos`)}
+          onPhotosChanged={handlePhotosChanged}
         />
 
         {/* Save Button (Bottom) */}

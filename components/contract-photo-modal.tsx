@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -96,8 +97,7 @@ export function ContractPhotoModal({
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Works on both iOS and Android
         quality: 0.8,
       });
 
@@ -120,8 +120,7 @@ export function ContractPhotoModal({
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Works on both iOS and Android
         quality: 0.8,
       });
 

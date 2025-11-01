@@ -47,9 +47,10 @@ A comprehensive React Native application built with Expo for managing vehicle re
 - Node.js (v18 or higher)
 - npm or yarn
 - Expo CLI
+- Supabase account (free: https://supabase.com)
 - iOS Simulator or Android Emulator (optional)
 
-### Local Development
+### Quick Setup (5 Minutes)
 
 1. **Clone the repository**
    ```bash
@@ -62,12 +63,17 @@ A comprehensive React Native application built with Expo for managing vehicle re
    npm install
    ```
 
-3. **Start the development server**
+3. **Setup Supabase** (See detailed guides below)
+   - [Quick Start Guide](QUICK_START_SUPABASE.md) - 5 minute setup
+   - [Complete Setup Instructions](SETUP_INSTRUCTIONS.md) - Detailed guide
+   - [Setup Checklist](SUPABASE_SETUP_CHECKLIST.md) - Step-by-step checklist
+
+4. **Start the development server**
    ```bash
    npx expo start
    ```
 
-4. **Run on device/simulator**
+5. **Run on device/simulator**
    - Scan QR code with Expo Go app
    - Press `i` for iOS simulator
    - Press `a` for Android emulator
@@ -135,9 +141,17 @@ fotisconctacts/
 
 ## 📄 Documentation
 
-- [Privacy Policy](PRIVACY_POLICY.md)
-- [App Store Description](APP_STORE_DESCRIPTION.md)
-- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
+### Setup Guides
+- [Quick Start Supabase](QUICK_START_SUPABASE.md) - Get started in 5 minutes
+- [Complete Setup Instructions](SETUP_INSTRUCTIONS.md) - Detailed walkthrough
+- [Setup Checklist](SUPABASE_SETUP_CHECKLIST.md) - Step-by-step checklist
+- [Supabase Integration](supabase/README.md) - Full Supabase documentation
+
+### Deployment
+- [Android Build Guide](ANDROID_BUILD_GUIDE.md) - Build APK for Android
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - App store deployment
+- [App Store Description](APP_STORE_DESCRIPTION.md) - Store listing info
+- [Privacy Policy](PRIVACY_POLICY.md) - Privacy policy document
 
 ## 🤝 Contributing
 

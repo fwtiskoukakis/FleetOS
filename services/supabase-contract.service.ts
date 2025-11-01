@@ -505,17 +505,36 @@ export class SupabaseContractService {
         throw contractError;
       }
 
-      // Then, insert damage points if any
+      // Ensure we have the saved contract with ID from database
+      if (!savedContract || !savedContract.id) {
+        throw new Error('Failed to save contract: No contract ID returned from database');
+      }
+
+      const contractId = savedContract.id; // Use the ID from the saved contract in database
+
+      // Then, insert damage points if any - ONLY after contract is saved
       if (contract.damagePoints && contract.damagePoints.length > 0) {
-        const damagePointsData = contract.damagePoints.map(dp => ({
-          contract_id: contract.id,
-          x_position: dp.x,
-          y_position: dp.y,
-          view_side: dp.view,
-          description: dp.description || '',
-          severity: dp.severity,
-          marker_type: dp.markerType,
-        }));
+        const damagePointsData = contract.damagePoints.map(dp => {
+          // Create descriptive location from view_side
+          const viewNames: Record<string, string> = {
+            'front': 'Front',
+            'rear': 'Rear',
+            'left': 'Left',
+            'right': 'Right'
+          };
+          const location = viewNames[dp.view] || dp.view || 'Unknown';
+          
+          return {
+            contract_id: contractId, // Use saved contract ID from database
+            location: location, // Required field: descriptive location
+            x_position: dp.x,
+            y_position: dp.y,
+            view_side: dp.view,
+            description: dp.description || '',
+            severity: dp.severity,
+            marker_type: dp.markerType,
+          };
+        });
 
         const { error: damageError } = await supabase
           .from('damage_points')
@@ -524,14 +543,16 @@ export class SupabaseContractService {
         if (damageError) {
           console.error('Error saving damage points:', damageError);
           // Don't throw, contract is already saved
+        } else {
+          console.log(`✅ Saved ${damagePointsData.length} damage points for contract ${contractId}`);
         }
       }
 
-      // Upload photos if any
+      // Upload photos if any - ONLY after contract is saved
       if (contract.photoUris && contract.photoUris.length > 0) {
         try {
-          await PhotoStorageService.saveContractPhotos(contract.id, contract.photoUris);
-          console.log(`✅ Uploaded ${contract.photoUris.length} photos for contract ${contract.id}`);
+          await PhotoStorageService.saveContractPhotos(contractId, contract.photoUris); // Use saved contract ID
+          console.log(`✅ Uploaded ${contract.photoUris.length} photos for contract ${contractId}`);
         } catch (error) {
           console.error('Error uploading contract photos:', error);
           // Don't throw, contract is already saved
@@ -653,15 +674,27 @@ export class SupabaseContractService {
         .eq('contract_id', id);
 
       if (contract.damagePoints && contract.damagePoints.length > 0) {
-        const damagePointsData = contract.damagePoints.map(dp => ({
-          contract_id: id,
-          x_position: dp.x,
-          y_position: dp.y,
-          view_side: dp.view,
-          description: dp.description || '',
-          severity: dp.severity,
-          marker_type: dp.markerType,
-        }));
+        const damagePointsData = contract.damagePoints.map(dp => {
+          // Create descriptive location from view_side
+          const viewNames: Record<string, string> = {
+            'front': 'Front',
+            'rear': 'Rear',
+            'left': 'Left',
+            'right': 'Right'
+          };
+          const location = viewNames[dp.view] || dp.view || 'Unknown';
+          
+          return {
+            contract_id: id,
+            location: location, // Required field: descriptive location
+            x_position: dp.x,
+            y_position: dp.y,
+            view_side: dp.view,
+            description: dp.description || '',
+            severity: dp.severity,
+            marker_type: dp.markerType,
+          };
+        });
 
         const { error: damageError } = await supabase
           .from('damage_points')

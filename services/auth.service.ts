@@ -29,18 +29,18 @@ export class AuthService {
         return { user: null, error };
       }
 
-      if (data.user) {
-        // Create user profile
+      // User profile is automatically created by database trigger
+      // Only update signature if provided
+      if (data.user && params.signatureUrl) {
         const { error: profileError } = await supabase
           .from('users')
-          .insert({
-            id: data.user.id,
-            name: params.name,
-            signature_url: params.signatureUrl || null,
-          });
+          .update({
+            signature_url: params.signatureUrl,
+          })
+          .eq('id', data.user.id);
 
         if (profileError) {
-          console.error('Error creating user profile:', profileError);
+          console.error('Error updating user profile:', profileError);
         }
       }
 
@@ -181,7 +181,7 @@ export class AuthService {
       // Explicitly list only columns that exist in the database
       const { data, error } = await supabase
         .from('users')
-        .select('id,name,signature_url,aade_enabled,aade_user_id,aade_subscription_key,company_vat_number,company_name,company_address,company_activity,created_at,updated_at')
+        .select('id,name,email,signature_url,phone,address,created_at,updated_at')
         .eq('id', userId)
         .maybeSingle();
 

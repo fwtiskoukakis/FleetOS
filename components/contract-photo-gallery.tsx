@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
   ScrollView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { PhotoStorageService } from '../services/photo-storage.service';
@@ -142,8 +143,7 @@ export function ContractPhotoGallery({
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Disable editing for both platforms to ensure compatibility
         quality: 0.8,
       });
 
@@ -166,8 +166,7 @@ export function ContractPhotoGallery({
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Disable editing for both platforms to ensure compatibility
         quality: 0.8,
         allowsMultipleSelection: false,
       });

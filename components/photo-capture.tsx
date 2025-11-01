@@ -52,8 +52,7 @@ export function PhotoCapture({ onPhotoTaken, photos = [], buttonText, captureMod
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Works on both iOS and Android
         quality: 0.8,
       });
 

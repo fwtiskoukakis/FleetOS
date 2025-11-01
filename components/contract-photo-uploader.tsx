@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
   ScrollView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { PhotoStorageService } from '../services/photo-storage.service';
@@ -42,24 +43,29 @@ export function ContractPhotoUploader({
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const isProcessingRef = useRef(false); // Prevent concurrent operations
 
   useEffect(() => {
-    if (contractId) {
+    if (contractId && !isProcessingRef.current) {
       loadPhotos();
     }
-  }, [contractId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractId]); // loadPhotos is stable and doesn't need to be in deps
 
   /**
    * Load photos from database
    */
   async function loadPhotos(): Promise<void> {
-    if (!contractId) return;
+    if (!contractId || isProcessingRef.current) return;
 
     setIsLoading(true);
     try {
       const loadedPhotos = await PhotoStorageService.getContractPhotos(contractId);
       setPhotos(loadedPhotos);
-      onPhotosChanged?.(loadedPhotos.length);
+      // Use setTimeout to prevent callback from triggering during render
+      setTimeout(() => {
+        onPhotosChanged?.(loadedPhotos.length);
+      }, 0);
     } catch (error) {
       console.error('Error loading photos:', error);
     } finally {
@@ -70,46 +76,78 @@ export function ContractPhotoUploader({
   /**
    * Request permissions
    */
-  async function requestPermissions(): Promise<boolean> {
-    const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-    const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  async function requestPermissions(requestType: 'camera' | 'gallery' | 'both' = 'both'): Promise<boolean> {
+    try {
+      if (requestType === 'camera' || requestType === 'both') {
+        const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!cameraPermission.granted) {
+          Alert.alert(
+            'Άδεια απαιτείται',
+            'Χρειαζόμαστε πρόσβαση στην κάμερα για να τραβήξετε φωτογραφίες'
+          );
+          return false;
+        }
+      }
 
-    if (!cameraPermission.granted || !mediaPermission.granted) {
-      Alert.alert(
-        'Άδεια απαιτείται',
-        'Χρειαζόμαστε πρόσβαση στην κάμερα και τη βιβλιοθήκη φωτογραφιών'
-      );
+      if (requestType === 'gallery' || requestType === 'both') {
+        const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!mediaPermission.granted) {
+          Alert.alert(
+            'Άδεια απαιτείται',
+            'Χρειαζόμαστε πρόσβαση στη βιβλιοθήκη φωτογραφιών'
+          );
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+      Alert.alert('Σφάλμα', 'Αποτυχία αίτησης αδειών');
       return false;
     }
-    return true;
   }
 
   /**
    * Take photo with camera
    */
   async function handleTakePhoto(): Promise<void> {
+    // Prevent concurrent calls
+    if (isProcessingRef.current || isUploading) {
+      console.warn('Photo operation already in progress');
+      return;
+    }
+
     if (!contractId) {
       Alert.alert('Σφάλμα', 'Αποθηκεύστε πρώτα το συμβόλαιο για να προσθέσετε φωτογραφίες');
       return;
     }
 
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
+    isProcessingRef.current = true;
 
     try {
+      // Only request camera permission when taking photo
+      const hasPermission = await requestPermissions('camera');
+      if (!hasPermission) {
+        isProcessingRef.current = false;
+        return;
+      }
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Disable editing for both platforms to ensure compatibility
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         await uploadPhoto(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error taking photo:', error);
-      Alert.alert('Σφάλμα', 'Αποτυχία λήψης φωτογραφίας');
+      const errorMessage = error?.message || 'Αποτυχία λήψης φωτογραφίας';
+      Alert.alert('Σφάλμα', errorMessage);
+    } finally {
+      isProcessingRef.current = false;
     }
   }
 
@@ -117,28 +155,42 @@ export function ContractPhotoUploader({
    * Pick photo from gallery
    */
   async function handlePickFromGallery(): Promise<void> {
+    // Prevent concurrent calls
+    if (isProcessingRef.current || isUploading) {
+      console.warn('Photo operation already in progress');
+      return;
+    }
+
     if (!contractId) {
       Alert.alert('Σφάλμα', 'Αποθηκεύστε πρώτα το συμβόλαιο για να προσθέσετε φωτογραφίες');
       return;
     }
 
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
+    isProcessingRef.current = true;
 
     try {
+      // Only request gallery permission when picking from gallery
+      const hasPermission = await requestPermissions('gallery');
+      if (!hasPermission) {
+        isProcessingRef.current = false;
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios', // Disable editing on Android due to crop issues
-        aspect: [4, 3],
+        allowsEditing: false, // Disable editing for both platforms to ensure compatibility
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         await uploadPhoto(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error picking photo:', error);
-      Alert.alert('Σφάλμα', 'Αποτυχία επιλογής φωτογραφίας');
+      const errorMessage = error?.message || 'Αποτυχία επιλογής φωτογραφίας';
+      Alert.alert('Σφάλμα', errorMessage);
+    } finally {
+      isProcessingRef.current = false;
     }
   }
 

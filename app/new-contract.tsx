@@ -212,6 +212,7 @@ export default function NewContractScreen() {
   }
 
   function handleAddDamage(x: number, y: number, view: CarView, markerType: DamageMarkerType) {
+    console.log('Adding damage point:', { x, y, view, markerType });
     // Generate a simple unique ID for damage points (not UUID required)
     const newDamage: DamagePoint = {
       id: `damage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -223,7 +224,12 @@ export default function NewContractScreen() {
       markerType,
       timestamp: new Date(),
     };
-    setDamagePoints([...damagePoints, newDamage]);
+    console.log('New damage point created:', newDamage);
+    setDamagePoints((prev) => {
+      const updated = [...prev, newDamage];
+      console.log('Updated damage points count:', updated.length);
+      return updated;
+    });
   }
 
   function handleRemoveLastDamage() {
@@ -245,6 +251,8 @@ export default function NewContractScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, // Works on both iOS and Android
       quality: 0.7,
       base64: false,
     });
@@ -263,6 +271,8 @@ export default function NewContractScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false, // Works on both iOS and Android
       allowsMultipleSelection: false,
       quality: 0.8,
       base64: false,
@@ -774,7 +784,8 @@ export default function NewContractScreen() {
           <CarDiagram 
             onAddDamage={handleAddDamage} 
             onRemoveLastDamage={handleRemoveLastDamage}
-            damagePoints={damagePoints} 
+            damagePoints={damagePoints}
+            isEditable={true}
           />
         </View>
 

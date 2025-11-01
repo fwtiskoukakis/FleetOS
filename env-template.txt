@@ -1,0 +1,9 @@
+# Copy this to .env and fill in your Supabase credentials
+
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+EXPO_PUBLIC_AADE_USER_ID=
+EXPO_PUBLIC_AADE_SUBSCRIPTION_KEY=
+EXPO_PUBLIC_COMPANY_VAT_NUMBER=
+EXPO_PUBLIC_AADE_ENVIRONMENT=development
+

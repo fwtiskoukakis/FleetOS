@@ -43,8 +43,15 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
         if (profile) {
           setUserInfo({
             name: profile.name || 'User',
-            email: user.email || 'user@example.com',
+            email: profile.email || user.email || 'user@example.com',
             avatarLetter: (profile.name || 'U').charAt(0).toUpperCase(),
+          });
+        } else {
+          // If no profile but we have auth user, show auth user email
+          setUserInfo({
+            name: user.email?.split('@')[0] || 'User',
+            email: user.email || 'user@example.com',
+            avatarLetter: (user.email?.charAt(0) || 'U').toUpperCase(),
           });
         }
       }
