@@ -300,6 +300,92 @@ export class PhotoStorageService {
   }
 
   /**
+   * Upload signature from base64 data URI (for migrating from database)
+   * @param userId User ID or contract ID
+   * @param base64DataUri Base64 data URI (data:image/svg+xml;base64,... or data:image/png;base64,...)
+   * @param signatureType Type of signature (user, client, etc)
+   * @returns Upload result with public URL
+   */
+  static async uploadSignatureFromBase64(
+    userId: string,
+    base64DataUri: string,
+    signatureType: 'user' | 'client' = 'client'
+  ): Promise<UploadResult> {
+    try {
+      const timestamp = Date.now();
+      const fileName = `contracts/${userId}/${signatureType}_signature_${timestamp}.png`;
+      
+      // Extract base64 string from data URI
+      const base64Match = base64DataUri.match(/data:image\/(\w+);base64,(.+)/);
+      if (!base64Match) {
+        throw new Error('Invalid base64 data URI format');
+      }
+      
+      const imageFormat = base64Match[1]; // svg or png
+      const base64String = base64Match[2];
+      
+      // Convert base64 to ArrayBuffer (React Native compatible)
+      const arrayBuffer = this.base64ToArrayBuffer(base64String);
+      
+      // Determine content type based on image format
+      const contentType = imageFormat === 'svg' ? 'image/svg+xml' : 'image/png';
+      
+      console.log('Uploading signature from base64, size:', arrayBuffer.byteLength, 'bytes');
+      
+      // Get user session token for authenticated requests
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.access_token) {
+        throw new Error('User not authenticated');
+      }
+
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase configuration missing');
+      }
+
+      // Encode path for URL
+      const pathSegments = fileName.split('/').map(segment => encodeURIComponent(segment));
+      const encodedPath = pathSegments.join('/');
+      
+      const storageUrl = `${supabaseUrl}/storage/v1/object/${this.BUCKET_SIGNATURES}/${encodedPath}`;
+      
+      // Upload using fetch API
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      const response = await fetch(storageUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': contentType,
+          'apikey': supabaseKey,
+          'x-upsert': 'false',
+          'cache-control': '3600',
+        },
+        body: uint8Array,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed:', response.status, errorText);
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${this.BUCKET_SIGNATURES}/${encodedPath}`;
+      
+      return {
+        url: publicUrl,
+        path: fileName,
+        size: arrayBuffer.byteLength,
+      };
+    } catch (error) {
+      console.error('Error in uploadSignatureFromBase64:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete a photo from storage
    * @param bucket Bucket name
    * @param path File path in bucket

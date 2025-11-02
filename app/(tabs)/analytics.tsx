@@ -87,32 +87,34 @@ export default function AnalyticsScreen() {
         </View>
 
         <Text style={s.sectionTitle}>Εσοδα</Text>
-        <View style={s.revenueCard}>
-          <View style={s.revenueRow}>
-            <Ionicons name="trending-up" size={24} color={Colors.success} />
-            <View>
-              <Text style={s.revenueLabel}>Συνολικά Εσοδα</Text>
-              <Text style={s.revenueValue}>€{stats.revenue.toLocaleString()}</Text>
+        <View style={s.revenueSection}>
+          <View style={s.revenueCard}>
+            <View style={s.revenueRow}>
+              <View style={s.revenueItem}>
+                <Ionicons name="trending-up" size={18} color={Colors.success} />
+                <View style={s.revenueTextContainer}>
+                  <Text style={s.revenueLabel}>Συνολικά</Text>
+                  <Text style={s.revenueValue}>€{stats.revenue.toLocaleString()}</Text>
+                </View>
+              </View>
+              <View style={s.revenueDivider} />
+              <View style={s.revenueItem}>
+                <Ionicons name="calendar" size={18} color={Colors.primary} />
+                <View style={s.revenueTextContainer}>
+                  <Text style={s.revenueLabel}>Αυτόν τον Μήνα</Text>
+                  <Text style={s.revenueValue}>€{stats.monthRevenue.toLocaleString()}</Text>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
-
-        <View style={s.revenueCard}>
-          <View style={s.revenueRow}>
-            <Ionicons name="calendar" size={24} color={Colors.primary} />
-            <View>
-              <Text style={s.revenueLabel}>Αυτόν τον Μήνα</Text>
-              <Text style={s.revenueValue}>€{stats.monthRevenue.toLocaleString()}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={s.revenueCard}>
-          <View style={s.revenueRow}>
-            <Ionicons name="calculator" size={24} color={Colors.info} />
-            <View>
-              <Text style={s.revenueLabel}>Μέση Αξία Συμβολαίου</Text>
-              <Text style={s.revenueValue}>€{Math.round(stats.avgValue)}</Text>
+          
+          <View style={s.revenueCard}>
+            <View style={s.revenueRowSingle}>
+              <Ionicons name="calculator" size={18} color={Colors.info} />
+              <View style={s.revenueTextContainer}>
+                <Text style={s.revenueLabel}>Μέση Αξία Συμβολαίου</Text>
+                <Text style={s.revenueValue}>€{Math.round(stats.avgValue)}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -124,15 +126,20 @@ export default function AnalyticsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { flex: 1, padding: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.text, marginVertical: 8, marginLeft: 4 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  statCard: { flex: 1, minWidth: '47%', backgroundColor: '#fff', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center' },
-  statIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.text, marginVertical: 6, marginLeft: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  statCard: { flex: 1, minWidth: '47%', backgroundColor: '#fff', borderRadius: 10, padding: 8, flexDirection: 'row', alignItems: 'center' },
+  statIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   statContent: { flex: 1 },
   statValue: { fontSize: 20, fontWeight: '700', color: Colors.text },
-  statLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' },
-  revenueCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 },
+  statLabel: { fontSize: 10, color: Colors.textSecondary, fontWeight: '500' },
+  revenueSection: { gap: 6 },
+  revenueCard: { backgroundColor: '#fff', borderRadius: 10, padding: 10 },
   revenueRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  revenueLabel: { fontSize: 11, color: Colors.textSecondary, marginBottom: 2 },
-  revenueValue: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  revenueRowSingle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  revenueItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  revenueTextContainer: { flex: 1 },
+  revenueDivider: { width: 1, height: 30, backgroundColor: '#e5e7eb' },
+  revenueLabel: { fontSize: 10, color: Colors.textSecondary, marginBottom: 2, fontWeight: '500' },
+  revenueValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
 });

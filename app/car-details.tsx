@@ -29,11 +29,21 @@ interface CarStats {
   totalDamages: number;
 }
 
+interface DamagePoint {
+  id: string;
+  contractId: string;
+  description: string;
+  severity: 'minor' | 'moderate' | 'severe';
+  viewSide: 'front' | 'rear' | 'left' | 'right';
+  createdAt: string;
+}
+
 export default function CarDetailsScreen() {
   const router = useRouter();
   const { carId } = useLocalSearchParams();
   const [car, setCar] = useState<Car | null>(null);
   const [stats, setStats] = useState<CarStats>({ totalContracts: 0, totalRevenue: 0, totalDamages: 0 });
+  const [damages, setDamages] = useState<DamagePoint[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -67,14 +77,41 @@ export default function CarDetailsScreen() {
         isAvailable: carData.is_available ?? true,
       });
 
-      const { data: contracts } = await supabase.from('contracts').select('total_cost').eq('car_license_plate', carData.license_plate);
-      const { data: damages } = await supabase.from('damage_points').select('id').eq('contract_id', carId);
+      // Load contracts for this vehicle
+      const { data: contracts } = await supabase
+        .from('contracts')
+        .select('id, total_cost')
+        .eq('car_license_plate', carData.license_plate);
+
+      // Load damages for all contracts of this vehicle
+      let allDamages: DamagePoint[] = [];
+      if (contracts && contracts.length > 0) {
+        const contractIds = contracts.map(c => c.id);
+        const { data: damagesData } = await supabase
+          .from('damage_points')
+          .select('*')
+          .in('contract_id', contractIds)
+          .order('created_at', { ascending: false });
+
+        if (damagesData) {
+          allDamages = damagesData.map(d => ({
+            id: d.id,
+            contractId: d.contract_id,
+            description: d.description,
+            severity: d.severity,
+            viewSide: d.view_side,
+            createdAt: d.created_at,
+          }));
+        }
+      }
 
       setStats({
         totalContracts: contracts?.length || 0,
         totalRevenue: contracts?.reduce((sum, c) => sum + (c.total_cost || 0), 0) || 0,
-        totalDamages: damages?.length || 0,
+        totalDamages: allDamages.length,
       });
+
+      setDamages(allDamages);
     } catch (error) {
       Alert.alert('Σφάλμα', 'Αποτυχία φόρτωσης');
     }
@@ -143,6 +180,34 @@ export default function CarDetailsScreen() {
       <Text style={s.infoValue}>{value}</Text>
     </View>
   );
+
+  function getSeverityColor(severity: string): string {
+    switch (severity) {
+      case 'severe': return Colors.error;
+      case 'moderate': return Colors.warning;
+      case 'minor': return Colors.info;
+      default: return Colors.textSecondary;
+    }
+  }
+
+  function getSeverityLabel(severity: string): string {
+    switch (severity) {
+      case 'severe': return 'Σοβαρό';
+      case 'moderate': return 'Μέτριο';
+      case 'minor': return 'Μικρό';
+      default: return severity;
+    }
+  }
+
+  function getViewSideLabel(viewSide: string): string {
+    switch (viewSide) {
+      case 'front': return 'Μπροστά';
+      case 'rear': return 'Πίσω';
+      case 'left': return 'Αριστερά';
+      case 'right': return 'Δεξιά';
+      default: return viewSide;
+    }
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -213,6 +278,33 @@ export default function CarDetailsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Damages List */}
+        {damages.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Ζημιές ({damages.length})</Text>
+            <View style={s.card}>
+              {damages.map((damage, index) => (
+                <View key={damage.id} style={[s.damageItem, index === damages.length - 1 && s.damageItemLast]}>
+                  <View style={s.damageLeft}>
+                    <View style={[s.damageSeverity, { backgroundColor: getSeverityColor(damage.severity) + '15' }]}>
+                      <Ionicons name="alert-circle" size={16} color={getSeverityColor(damage.severity)} />
+                    </View>
+                    <View style={s.damageContent}>
+                      <Text style={s.damageDescription}>{damage.description}</Text>
+                      <Text style={s.damageMeta}>
+                        {getSeverityLabel(damage.severity)} • {getViewSideLabel(damage.viewSide)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={s.damageDate}>
+                    {new Date(damage.createdAt).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <BottomTabBar />
@@ -240,22 +332,22 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 10, color: Colors.textSecondary, fontWeight: '600' },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
+    gap: 6,
+    marginTop: 8,
   },
   editButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: Colors.primary,
-    padding: 14,
-    borderRadius: 12,
-    ...Shadows.md,
+    padding: 10,
+    borderRadius: 10,
+    ...Shadows.sm,
   },
   editButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
   },
@@ -264,15 +356,58 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: Colors.error,
-    padding: 14,
-    borderRadius: 12,
-    ...Shadows.md,
+    padding: 10,
+    borderRadius: 10,
+    ...Shadows.sm,
   },
   deleteButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
+  },
+  damageItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  damageItemLast: {
+    borderBottomWidth: 0,
+  },
+  damageLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  damageSeverity: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  damageContent: {
+    flex: 1,
+  },
+  damageDescription: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  damageMeta: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  damageDate: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
 });

@@ -34,22 +34,10 @@ const tabs: TabItem[] = [
     route: '/contracts',
   },
   {
-    key: 'damage',
-    label: 'Ζημιές',
-    icon: 'warning',
-    route: '/damages',
-  },
-  {
     key: 'cars',
     label: 'Στόλος',
     icon: 'car-sport',
     route: '/cars',
-  },
-  {
-    key: 'profile',
-    label: 'Προφίλ',
-    icon: 'person-circle',
-    route: '/profile',
   },
 ];
 

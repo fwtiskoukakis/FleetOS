@@ -513,6 +513,29 @@ export class SupabaseContractService {
 
       const contractId = savedContract.id; // Use the ID from the saved contract in database
 
+      // Upload signature to storage if it's a base64 data URI
+      if (contract.clientSignature && contract.clientSignature.startsWith('data:image')) {
+        try {
+          console.log('Uploading signature to storage for contract:', contractId);
+          const uploadResult = await PhotoStorageService.uploadSignatureFromBase64(
+            contractId,
+            contract.clientSignature,
+            'client'
+          );
+          
+          // Update the contract with the storage URL
+          await supabase
+            .from('contracts')
+            .update({ client_signature_url: uploadResult.url })
+            .eq('id', contractId);
+          
+          console.log('Signature uploaded successfully:', uploadResult.url);
+        } catch (error) {
+          console.error('Error uploading signature to storage:', error);
+          // Don't throw - contract is already saved, signature can stay as base64
+        }
+      }
+
       // Then, insert damage points if any - ONLY after contract is saved
       if (contract.damagePoints && contract.damagePoints.length > 0) {
         const damagePointsData = contract.damagePoints.map(dp => {
@@ -657,6 +680,26 @@ export class SupabaseContractService {
       if (contract.carCondition.interiorCondition) contractData.interior_condition = contract.carCondition.interiorCondition;
       if (contract.carCondition.mechanicalCondition) contractData.mechanical_condition = contract.carCondition.mechanicalCondition;
       if (contract.carCondition.notes) contractData.condition_notes = contract.carCondition.notes;
+
+      // Upload signature to storage if it's a base64 data URI
+      if (contract.clientSignature && contract.clientSignature.startsWith('data:image')) {
+        try {
+          console.log('Uploading signature to storage for contract:', id);
+          const uploadResult = await PhotoStorageService.uploadSignatureFromBase64(
+            id,
+            contract.clientSignature,
+            'client'
+          );
+          
+          // Update the signature URL to use storage
+          contractData.client_signature_url = uploadResult.url;
+          
+          console.log('Signature uploaded successfully:', uploadResult.url);
+        } catch (error) {
+          console.error('Error uploading signature to storage:', error);
+          // Don't throw - signature can stay as base64
+        }
+      }
 
       // First try to update without select to avoid 406 errors
       console.log('Updating contract with ID:', id);

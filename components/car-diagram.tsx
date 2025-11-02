@@ -31,6 +31,7 @@ export function CarDiagram({ onAddDamage, onRemoveLastDamage, damagePoints, isEd
   const [imageLayout, setImageLayout] = useState({ width: 0, height: 0, x: 0, y: 0 });
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const [selectedMarkerType, setSelectedMarkerType] = useState<DamageMarkerType>('slight-scratch');
+  const [selectedView, setSelectedView] = useState<'front' | 'rear' | 'left' | 'right'>('front');
   const [photos, setPhotos] = useState<string[]>([]);
   const containerRef = useRef<View>(null);
   const imageRef = useRef<any>(null);
@@ -110,8 +111,8 @@ export function CarDiagram({ onAddDamage, onRemoveLastDamage, damagePoints, isEd
     const clampedX = Math.max(0, Math.min(100, xPercent));
     const clampedY = Math.max(0, Math.min(100, yPercent));
     
-    // For now, we'll use 'front' as default view for all vehicle types
-    onAddDamage(clampedX, clampedY, 'front', selectedMarkerType);
+    // Use the selected view region
+    onAddDamage(clampedX, clampedY, selectedView, selectedMarkerType);
   }
 
   function renderDamageMarker(damage: DamagePoint) {
@@ -237,6 +238,45 @@ export function CarDiagram({ onAddDamage, onRemoveLastDamage, damagePoints, isEd
               ATV
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* View Region Selector */}
+        <View style={styles.viewRegionSection}>
+          <Text style={styles.viewRegionLabel}>Περιοχή:</Text>
+          <View style={styles.viewRegionContainer}>
+            <TouchableOpacity
+              style={[styles.viewRegionButton, selectedView === 'front' && styles.viewRegionButtonActive]}
+              onPress={() => setSelectedView('front')}
+            >
+              <Text style={[styles.viewRegionText, selectedView === 'front' && styles.viewRegionTextActive]}>
+                Μπροστά
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewRegionButton, selectedView === 'rear' && styles.viewRegionButtonActive]}
+              onPress={() => setSelectedView('rear')}
+            >
+              <Text style={[styles.viewRegionText, selectedView === 'rear' && styles.viewRegionTextActive]}>
+                Πίσω
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewRegionButton, selectedView === 'left' && styles.viewRegionButtonActive]}
+              onPress={() => setSelectedView('left')}
+            >
+              <Text style={[styles.viewRegionText, selectedView === 'left' && styles.viewRegionTextActive]}>
+                Αριστερά
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewRegionButton, selectedView === 'right' && styles.viewRegionButtonActive]}
+              onPress={() => setSelectedView('right')}
+            >
+              <Text style={[styles.viewRegionText, selectedView === 'right' && styles.viewRegionTextActive]}>
+                Δεξιά
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Damage Marker Type Selector */}
@@ -419,6 +459,45 @@ const styles = StyleSheet.create({
     position: 'absolute',
     marginLeft: -10,
     marginTop: -10,
+  },
+  viewRegionSection: {
+    marginBottom: 15,
+  },
+  viewRegionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  viewRegionContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  viewRegionButton: {
+    flex: 1,
+    minWidth: '22%',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ddd',
+  },
+  viewRegionButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  viewRegionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+  },
+  viewRegionTextActive: {
+    color: '#fff',
   },
   markerSection: {
     marginBottom: 15,

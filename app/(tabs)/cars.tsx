@@ -11,6 +11,8 @@ import {
   FlatList,
   Dimensions,
   Platform,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +79,10 @@ export default function CarsScreen() {
   const [showDropoffTimePicker, setShowDropoffTimePicker] = useState(false);
   const [filterByAvailability, setFilterByAvailability] = useState(false);
   const [availableVehicles, setAvailableVehicles] = useState<Set<string>>(new Set());
+  
+  // Dropdown modals
+  const [showViewDropdown, setShowViewDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   useEffect(() => {
     loadCars();
@@ -324,6 +330,29 @@ export default function CarsScreen() {
     setRefreshing(false);
   };
 
+  function getViewLabel(style: GridStyle): string {
+    switch (style) {
+      case 'list': return 'List';
+      case 'grid3': return '3x';
+      case 'grid4': return '4x';
+      case 'grid5': return '5x';
+      default: return 'List';
+    }
+  }
+
+  function getSortLabel(option: SortOption): string {
+    switch (option) {
+      case 'default': return 'Default';
+      case 'urgent': return 'Urgent';
+      case 'kteo_due': return 'KTEO';
+      case 'insurance_due': return 'Insurance';
+      case 'tires_due': return 'Tires Due';
+      case 'tires_recent': return 'Recent Tires';
+      case 'service_due': return 'Service';
+      default: return 'Default';
+    }
+  }
+
   return (
     <View style={s.container}>
       <Breadcrumb 
@@ -333,59 +362,60 @@ export default function CarsScreen() {
         ]}
       />
 
-      <View style={s.topBar}>
-        <View style={s.searchBox}>
-          <Ionicons name="search" size={16} color={Colors.textSecondary} />
-          <TextInput style={s.searchInput} placeholder="Αναζήτηση..." value={search} onChangeText={setSearch} />
-        </View>
-        
-        {/* Grid Style Selector */}
-        <View style={s.gridStyleSelector}>
-          <Text style={s.gridStyleLabel}>Προβολή:</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={s.gridStyleButtons}
-            contentContainerStyle={s.gridStyleButtonsContent}
-          >
-            {([
-              ['list', 'Λίστα', 'list-outline'],
-              ['grid3', '3x', 'grid-outline'],
-              ['grid4', '4x', 'grid-outline'],
-              ['grid5', '5x', 'grid-outline']
-            ] as const).map(([style, label, icon]) => (
-              <TouchableOpacity 
-                key={style} 
-                style={[s.gridStyleBtn, gridStyle === style && s.gridStyleBtnActive]} 
-                onPress={() => setGridStyle(style as GridStyle)}
-              >
-                <Ionicons 
-                  name={icon as any} 
-                  size={14} 
-                  color={gridStyle === style ? '#fff' : Colors.textSecondary} 
-                />
-                <Text style={[s.gridStyleText, gridStyle === style && s.gridStyleTextActive]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
+      {/* Single Row Header */}
+      <View style={s.compactHeader}>
+        {/* Status Filter */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
-          style={s.filters}
-          contentContainerStyle={s.filtersContent}
+          style={s.filtersCompact}
+          contentContainerStyle={s.filtersCompactContent}
         >
-          {([['all', 'Ολα'], ['available', 'Διαθέσιμα'], ['rented', 'Ενοικιασμένα'], ['maintenance', 'Συντήρηση']] as const).map(([f, label]) => (
-            <TouchableOpacity key={f} style={[s.filterBtn, filter === f && s.filterBtnActive]} onPress={() => setFilter(f)}>
-              <Text style={[s.filterText, filter === f && s.filterTextActive]}>
-                {label} ({f === 'all' ? vehicles.length : vehicles.filter(c => c.status === f).length})
+          {([['all', 'All'], ['available', 'Available'], ['rented', 'Rented'], ['maintenance', 'Maintenance']] as const).map(([f, label]) => (
+            <TouchableOpacity 
+              key={f} 
+              style={[s.filterBtnCompact, filter === f && s.filterBtnCompactActive]} 
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[s.filterTextCompact, filter === f && s.filterTextCompactActive]}>
+                {label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* View & Sort Dropdowns */}
+        <View style={s.dropdownsRow}>
+          <TouchableOpacity 
+            style={s.dropdownBtnCompact}
+            onPress={() => setShowViewDropdown(true)}
+          >
+            <Text style={s.dropdownTextCompact}>{getViewLabel(gridStyle)}</Text>
+            <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={s.dropdownBtnCompact}
+            onPress={() => setShowSortDropdown(true)}
+          >
+            <Text style={s.dropdownTextCompact}>{getSortLabel(sortBy)}</Text>
+            <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search Bar - Separate Row */}
+      <View style={s.searchRow}>
+        <View style={s.searchBoxCompact}>
+          <Ionicons name="search" size={16} color={Colors.textSecondary} />
+          <TextInput 
+            style={s.searchInputCompact} 
+            placeholder="Search..." 
+            value={search} 
+            onChangeText={setSearch}
+            placeholderTextColor={Colors.textSecondary}
+          />
+        </View>
       </View>
 
       {/* Availability Filter Section */}
@@ -468,39 +498,88 @@ export default function CarsScreen() {
         )}
       </View>
 
-      {/* Sorting Bar */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        style={s.sortBar}
-        contentContainerStyle={s.sortBarContent}
+      {/* View Dropdown Modal */}
+      <Modal
+        visible={showViewDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowViewDropdown(false)}
       >
-        <Text style={s.sortLabel}>Ταξινόμηση:</Text>
-        {([
-          ['default', 'Προεπιλογή', 'swap-vertical'],
-          ['urgent', 'Επείγοντα', 'warning'],
-          ['kteo_due', 'KTEO Λήξη', 'calendar'],
-          ['insurance_due', 'Ασφάλεια', 'shield'],
-          ['tires_due', 'Λάστιχα Λήξη', 'ellipse'],
-          ['tires_recent', 'Πρόσφατα Λάστιχα', 'time'],
-          ['service_due', 'Σέρβις', 'construct'],
-        ] as const).map(([sort, label, icon]) => (
-          <TouchableOpacity
-            key={sort}
-            style={[s.sortBtn, sortBy === sort && s.sortBtnActive]}
-            onPress={() => setSortBy(sort as SortOption)}
-          >
-            <Ionicons
-              name={icon as any}
-              size={14}
-              color={sortBy === sort ? '#fff' : Colors.textSecondary}
-            />
-            <Text style={[s.sortText, sortBy === sort && s.sortTextActive]}>
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        <Pressable style={s.dropdownOverlay} onPress={() => setShowViewDropdown(false)}>
+          <View style={s.dropdownContent}>
+            {[
+              ['list', 'List', 'list-outline'],
+              ['grid3', '3 Columns', 'grid-outline'],
+              ['grid4', '4 Columns', 'grid-outline'],
+              ['grid5', '5 Columns', 'grid-outline'],
+            ].map(([style, label, icon]) => (
+              <TouchableOpacity
+                key={style}
+                style={[s.dropdownOption, gridStyle === style && s.dropdownOptionActive]}
+                onPress={() => {
+                  setGridStyle(style as GridStyle);
+                  setShowViewDropdown(false);
+                }}
+              >
+                <Ionicons
+                  name={icon as any}
+                  size={18}
+                  color={gridStyle === style ? Colors.primary : Colors.textSecondary}
+                />
+                <Text style={[s.dropdownOptionText, gridStyle === style && s.dropdownOptionTextActive]}>
+                  {label}
+                </Text>
+                {gridStyle === style && (
+                  <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Sort Dropdown Modal */}
+      <Modal
+        visible={showSortDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSortDropdown(false)}
+      >
+        <Pressable style={s.dropdownOverlay} onPress={() => setShowSortDropdown(false)}>
+          <View style={s.dropdownContent}>
+            {[
+              ['default', 'Default', 'swap-vertical'],
+              ['urgent', 'Most Urgent', 'warning'],
+              ['kteo_due', 'KTEO Due', 'calendar'],
+              ['insurance_due', 'Insurance Due', 'shield'],
+              ['tires_due', 'Tires Due', 'ellipse'],
+              ['tires_recent', 'Recent Tires', 'time'],
+              ['service_due', 'Service Due', 'construct'],
+            ].map(([sort, label, icon]) => (
+              <TouchableOpacity
+                key={sort}
+                style={[s.dropdownOption, sortBy === sort && s.dropdownOptionActive]}
+                onPress={() => {
+                  setSortBy(sort as SortOption);
+                  setShowSortDropdown(false);
+                }}
+              >
+                <Ionicons
+                  name={icon as any}
+                  size={18}
+                  color={sortBy === sort ? Colors.primary : Colors.textSecondary}
+                />
+                <Text style={[s.dropdownOptionText, sortBy === sort && s.dropdownOptionTextActive]}>
+                  {label}
+                </Text>
+                {sortBy === sort && (
+                  <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Date/Time Pickers */}
       {showPickupDatePicker && (
@@ -723,37 +802,168 @@ export default function CarsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  topBar: { backgroundColor: '#fff', padding: 8, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, height: 36, marginBottom: 8, gap: 6 },
+  
+  // Compact Header (Single Row)
+  compactHeader: { 
+    backgroundColor: '#fff', 
+    paddingHorizontal: 6, 
+    paddingVertical: 6, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#e5e7eb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  searchRow: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 6,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  searchBoxCompact: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#f3f4f6', 
+    borderRadius: 8, 
+    paddingHorizontal: 8, 
+    height: 32,
+    gap: 6,
+  },
+  searchInputCompact: { 
+    flex: 1, 
+    fontSize: 13, 
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  filtersCompact: {
+    flex: 1,
+  },
+  filtersCompactContent: { 
+    flexDirection: 'row', 
+    gap: 4,
+  },
+  filterBtnCompact: { 
+    paddingHorizontal: 8, 
+    paddingVertical: 5, 
+    borderRadius: 8, 
+    backgroundColor: '#f3f4f6',
+  },
+  filterBtnCompactActive: { 
+    backgroundColor: Colors.primary,
+  },
+  filterTextCompact: { 
+    fontSize: 11, 
+    fontWeight: '600', 
+    color: Colors.textSecondary,
+  },
+  filterTextCompactActive: { 
+    color: '#fff',
+  },
+  dropdownsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  dropdownBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    gap: 3,
+  },
+  dropdownTextCompact: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    gap: 4,
+  },
+  dropdownText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  
+  // Dropdown Modals
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 200,
+    maxWidth: width * 0.8,
+    ...Shadows.lg,
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  dropdownOptionActive: {
+    backgroundColor: '#f3f4f6',
+  },
+  dropdownOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  dropdownOptionTextActive: {
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  
+  // Legacy styles (kept for reference but not used)
+  topBar: { backgroundColor: '#fff', padding: 6, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, height: 36, marginBottom: 6, gap: 6 },
   searchInput: { flex: 1, fontSize: 14, color: Colors.text },
   
   // Grid Style Selector
-  gridStyleSelector: { marginBottom: 8 },
-  gridStyleLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600', marginBottom: 4 },
+  gridStyleSelector: { marginBottom: 4 },
+  gridStyleLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
   gridStyleButtons: {},
-  gridStyleButtonsContent: { flexDirection: 'row', gap: 6 },
+  gridStyleButtonsContent: { flexDirection: 'row', gap: 4 },
   gridStyleBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    paddingHorizontal: 10, 
-    paddingVertical: 6, 
-    borderRadius: 16, 
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    borderRadius: 14, 
     backgroundColor: '#f3f4f6', 
-    marginRight: 6,
-    gap: 4,
+    marginRight: 4,
+    gap: 3,
   },
   gridStyleBtnActive: { backgroundColor: Colors.primary },
-  gridStyleText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  gridStyleText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
   gridStyleTextActive: { color: '#fff' },
   
   filters: {},
-  filtersContent: { flexDirection: 'row', gap: 6 },
-  filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', marginRight: 6 },
+  filtersContent: { flexDirection: 'row', gap: 4 },
+  filterBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, backgroundColor: '#f3f4f6', marginRight: 4 },
   filterBtnActive: { backgroundColor: Colors.primary },
-  filterText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+  filterText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
   filterTextActive: { color: '#fff' },
   
-  // Sorting Bar
+  // Sorting Bar - Inline version
+  sortBarInline: {
+    marginTop: 4,
+  },
   sortBar: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -762,30 +972,32 @@ const s = StyleSheet.create({
   sortBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
   },
   sortLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: Colors.textSecondary,
-    marginRight: 8,
+    marginRight: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   sortBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
     backgroundColor: '#f3f4f6',
-    marginRight: 6,
-    gap: 4,
+    marginRight: 4,
+    gap: 3,
   },
   sortBtnActive: {
     backgroundColor: Colors.primary,
   },
   sortText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
@@ -798,29 +1010,29 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
   },
   availabilityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   availabilityToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     backgroundColor: '#f3f4f6',
-    gap: 6,
+    gap: 5,
   },
   availabilityToggleActive: {
     backgroundColor: Colors.primary,
   },
   availabilityToggleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
@@ -828,63 +1040,63 @@ const s = StyleSheet.create({
     color: '#fff',
   },
   clearAvailabilityButton: {
-    padding: 4,
+    padding: 3,
   },
   dateTimePickerContainer: {
-    gap: 8,
+    gap: 6,
   },
   dateTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   dateTimeLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: Colors.textSecondary,
-    minWidth: 70,
+    minWidth: 65,
   },
   dateTimeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
     backgroundColor: '#f3f4f6',
-    gap: 4,
+    gap: 3,
     flex: 1,
   },
   dateTimeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: Colors.text,
   },
   
-  list: { flex: 1, padding: CARD_MARGIN },
+  list: { flex: 1, padding: 6 },
   listContent: { paddingBottom: 100 },
   
   // Grid View Styles
   gridCard: { 
     backgroundColor: '#fff', 
-    borderRadius: 12, 
-    margin: CARD_MARGIN / 2,
+    borderRadius: 10, 
+    margin: 4,
     ...Shadows.sm 
   },
   gridCardContent: {
-    padding: 8,
-    height: 80,
+    padding: 6,
+    height: 70,
     justifyContent: 'space-between',
   },
   gridCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   gridCardHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   gpsIcon: {
     marginLeft: 2,
@@ -894,22 +1106,22 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   makeModel: { 
-    fontSize: 11, 
+    fontSize: 10, 
     fontWeight: '700', 
     color: Colors.text, 
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 13,
   },
   plateNumber: { 
-    fontSize: 10, 
+    fontSize: 9, 
     color: Colors.textSecondary, 
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: 1,
     fontWeight: '600',
   },
   deleteButton: { 
@@ -919,72 +1131,72 @@ const s = StyleSheet.create({
   // List View Styles
   listCard: { 
     backgroundColor: '#fff', 
-    borderRadius: 12, 
-    marginBottom: 8,
+    borderRadius: 10, 
+    marginBottom: 6,
     ...Shadows.sm 
   },
   listRow: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
-    padding: 12,
+    padding: 10,
   },
   listLeft: { 
     flex: 1, 
     marginRight: 8 
   },
   listName: { 
-    fontSize: 15, 
+    fontSize: 14, 
     fontWeight: '700', 
     color: Colors.text, 
-    marginBottom: 2 
+    marginBottom: 1 
   },
   listDetail: { 
-    fontSize: 12, 
+    fontSize: 11, 
     color: Colors.textSecondary, 
-    marginBottom: 2 
+    marginBottom: 1 
   },
   listRight: { 
     alignItems: 'flex-end', 
-    gap: 6 
+    gap: 4 
   },
   listBadge: { 
-    paddingHorizontal: 8, 
-    paddingVertical: 3, 
-    borderRadius: 10 
+    paddingHorizontal: 6, 
+    paddingVertical: 2, 
+    borderRadius: 8 
   },
   listBadgeText: { 
-    fontSize: 10, 
+    fontSize: 9, 
     fontWeight: '700', 
     textTransform: 'uppercase' 
   },
   listDeleteButton: { 
-    padding: 4 
+    padding: 3 
   },
   listNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   warningIcon: {
-    marginLeft: 6,
+    marginLeft: 4,
   },
   maintenanceIndicators: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    marginTop: 6,
+    gap: 3,
+    marginTop: 4,
   },
   maintenanceChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: '#f3f4f6',
-    gap: 3,
+    gap: 2,
   },
   maintenanceChipText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '600',
   },
   

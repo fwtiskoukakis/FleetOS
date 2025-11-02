@@ -10,6 +10,7 @@ import {
   ScrollView,
   Dimensions,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,11 @@ import { Colors, Typography, Spacing, Shadows, BorderRadius, Glass } from '../..
 import { smoothScrollConfig } from '../../utils/animations';
 import { getAADEStatusMessage } from '../../utils/aade-contract-helper';
 import { FleetOSIcon } from '../../components/fleetos-logo';
+import { VehicleService } from '../../services/vehicle.service';
+import { Vehicle } from '../../models/vehicle.interface';
+import { calculateExpiryUrgency, calculateServiceUrgency } from '../../utils/maintenance-urgency';
+import { startOfWeek, endOfWeek, startOfDay, endOfDay, format, isSameDay, addDays, parseISO } from 'date-fns';
+import { el } from 'date-fns/locale';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +41,38 @@ interface DashboardStats {
   avgRentalDays: number;
 }
 
+interface FleetAvailability {
+  totalVehicles: number;
+  availableVehicles: number;
+  rentedVehicles: number;
+  maintenanceVehicles: number;
+  urgentMaintenanceCount: number;
+}
+
+interface MaintenanceAlert {
+  vehicleId: string;
+  vehicleName: string;
+  alertType: 'kteo' | 'insurance' | 'tires' | 'service';
+  urgency: {
+    level: 'expired' | 'critical' | 'warning' | 'soon' | 'ok';
+    color: string;
+    label: string;
+  };
+}
+
+interface ActivityEvent {
+  id: string;
+  type: 'pickup' | 'return';
+  contractId: string;
+  vehicleName: string;
+  customerName: string;
+  time: string;
+  date: Date;
+  location: string;
+}
+
+type ActivityView = 'today' | 'week';
+
 export default function HomeScreen() {
   const router = useRouter();
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -42,6 +80,12 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed' | 'upcoming'>('all');
+  const [activityView, setActivityView] = useState<ActivityView>('today');
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([]);
+  const [todayActivities, setTodayActivities] = useState<ActivityEvent[]>([]);
+  const [weekActivities, setWeekActivities] = useState<ActivityEvent[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalContracts: 0,
     activeContracts: 0,
@@ -51,14 +95,43 @@ export default function HomeScreen() {
     revenueThisMonth: 0,
     avgRentalDays: 0,
   });
+  const [fleetAvailability, setFleetAvailability] = useState<FleetAvailability>({
+    totalVehicles: 0,
+    availableVehicles: 0,
+    rentedVehicles: 0,
+    maintenanceVehicles: 0,
+    urgentMaintenanceCount: 0,
+  });
 
   useEffect(() => {
-    loadContracts();
+    loadDashboardData();
   }, []);
 
   useEffect(() => {
     filterContracts();
   }, [contracts, searchQuery, activeFilter]);
+
+  async function loadDashboardData() {
+    setLoadingDashboard(true);
+    try {
+      // Load all data in parallel
+      const [loadedContracts, loadedVehicles] = await Promise.all([
+        loadContracts(),
+        VehicleService.getAllVehicles(),
+      ]);
+
+      // Calculate all dashboard metrics
+      await Promise.all([
+        calculateFleetStats(loadedVehicles),
+        loadActivityData(),
+      ]);
+
+      setLoadingDashboard(false);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setLoadingDashboard(false);
+    }
+  }
 
   async function loadContracts() {
     try {
@@ -76,9 +149,186 @@ export default function HomeScreen() {
       
       setContracts(contractsWithAADE);
       calculateStats(contractsWithAADE);
+      return contractsWithAADE;
     } catch (error) {
       console.error('Error loading contracts:', error);
       Alert.alert('Σφάλμα', 'Αποτυχία φόρτωσης συμβολαίων');
+      return [];
+    }
+  }
+
+  async function calculateFleetStats(vehicles: Vehicle[]) {
+    setVehicles(vehicles);
+
+    // Calculate fleet availability
+    const total = vehicles.length;
+    const available = vehicles.filter(v => v.status === 'available').length;
+    const rented = vehicles.filter(v => v.status === 'rented').length;
+    const maintenance = vehicles.filter(v => v.status === 'maintenance').length;
+
+    // Calculate maintenance alerts
+    const alerts: MaintenanceAlert[] = [];
+    vehicles.forEach(vehicle => {
+      const vehicleName = `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`;
+      
+      // Check KTEO
+      const kteoUrgency = calculateExpiryUrgency(vehicle.kteoExpiryDate);
+      if (kteoUrgency.level !== 'ok') {
+        alerts.push({
+          vehicleId: vehicle.id,
+          vehicleName,
+          alertType: 'kteo',
+          urgency: kteoUrgency,
+        });
+      }
+
+      // Check Insurance
+      const insuranceUrgency = calculateExpiryUrgency(vehicle.insuranceExpiryDate);
+      if (insuranceUrgency.level !== 'ok') {
+        alerts.push({
+          vehicleId: vehicle.id,
+          vehicleName,
+          alertType: 'insurance',
+          urgency: insuranceUrgency,
+        });
+      }
+
+      // Check Tires
+      const tiresUrgency = calculateExpiryUrgency(vehicle.tiresNextChangeDate);
+      if (tiresUrgency.level !== 'ok') {
+        alerts.push({
+          vehicleId: vehicle.id,
+          vehicleName,
+          alertType: 'tires',
+          urgency: tiresUrgency,
+        });
+      }
+
+      // Check Service
+      if (vehicle.nextServiceMileage && vehicle.currentMileage) {
+        const serviceUrgency = calculateServiceUrgency(vehicle.currentMileage, vehicle.nextServiceMileage);
+        if (serviceUrgency.level !== 'ok') {
+          alerts.push({
+            vehicleId: vehicle.id,
+            vehicleName,
+            alertType: 'service',
+            urgency: serviceUrgency,
+          });
+        }
+      }
+    });
+
+    // Sort alerts by urgency
+    const urgencyOrder = { expired: 0, critical: 1, warning: 2, soon: 3, ok: 4 };
+    alerts.sort((a, b) => urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level]);
+
+    setMaintenanceAlerts(alerts.slice(0, 5)); // Show top 5 most urgent
+    setFleetAvailability({
+      totalVehicles: total,
+      availableVehicles: available,
+      rentedVehicles: rented,
+      maintenanceVehicles: maintenance,
+      urgentMaintenanceCount: alerts.filter(a => a.urgency.level === 'expired' || a.urgency.level === 'critical').length,
+    });
+  }
+
+  async function loadActivityData() {
+    const today = startOfDay(new Date()); // Ensure we're comparing dates only
+    const todayStart = startOfDay(today);
+    const todayEnd = endOfDay(today);
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+
+    try {
+      // Get today's activities - query all recent contracts to catch overlapping rentals
+      const allContracts = await SupabaseContractService.getAllContracts();
+      
+      const todayEvents: ActivityEvent[] = [];
+      allContracts.forEach(contract => {
+        const pickupDate = new Date(contract.rentalPeriod.pickupDate);
+        const dropoffDate = new Date(contract.rentalPeriod.dropoffDate);
+        
+        // Format time as HH:mm (remove seconds if present)
+        const pickupTime = contract.rentalPeriod.pickupTime?.split(':').slice(0, 2).join(':') || '00:00';
+        const dropoffTime = contract.rentalPeriod.dropoffTime?.split(':').slice(0, 2).join(':') || '00:00';
+        
+        if (isSameDay(pickupDate, today)) {
+          todayEvents.push({
+            id: `${contract.id}-pickup`,
+            type: 'pickup',
+            contractId: contract.id,
+            vehicleName: contract.carInfo.makeModel,
+            customerName: contract.renterInfo.fullName,
+            time: pickupTime,
+            date: pickupDate,
+            location: contract.rentalPeriod.pickupLocation,
+          });
+        }
+        
+        if (isSameDay(dropoffDate, today)) {
+          todayEvents.push({
+            id: `${contract.id}-return`,
+            type: 'return',
+            contractId: contract.id,
+            vehicleName: contract.carInfo.makeModel,
+            customerName: contract.renterInfo.fullName,
+            time: dropoffTime,
+            date: dropoffDate,
+            location: contract.rentalPeriod.dropoffLocation,
+          });
+        }
+      });
+
+      // Sort by time
+      todayEvents.sort((a, b) => a.time.localeCompare(b.time));
+      setTodayActivities(todayEvents);
+
+      // Get week's activities - reuse allContracts for efficiency
+      const weekEvents: ActivityEvent[] = [];
+      allContracts.forEach(contract => {
+        const pickupDate = new Date(contract.rentalPeriod.pickupDate);
+        const dropoffDate = new Date(contract.rentalPeriod.dropoffDate);
+        
+        // Format time as HH:mm (remove seconds if present)
+        const pickupTime = contract.rentalPeriod.pickupTime?.split(':').slice(0, 2).join(':') || '00:00';
+        const dropoffTime = contract.rentalPeriod.dropoffTime?.split(':').slice(0, 2).join(':') || '00:00';
+        
+        if (pickupDate >= weekStart && pickupDate <= weekEnd) {
+          weekEvents.push({
+            id: `${contract.id}-pickup`,
+            type: 'pickup',
+            contractId: contract.id,
+            vehicleName: contract.carInfo.makeModel,
+            customerName: contract.renterInfo.fullName,
+            time: pickupTime,
+            date: pickupDate,
+            location: contract.rentalPeriod.pickupLocation,
+          });
+        }
+        
+        if (dropoffDate >= weekStart && dropoffDate <= weekEnd) {
+          weekEvents.push({
+            id: `${contract.id}-return`,
+            type: 'return',
+            contractId: contract.id,
+            vehicleName: contract.carInfo.makeModel,
+            customerName: contract.renterInfo.fullName,
+            time: dropoffTime,
+            date: dropoffDate,
+            location: contract.rentalPeriod.dropoffLocation,
+          });
+        }
+      });
+
+      // Sort by date, then time
+      weekEvents.sort((a, b) => {
+        const dateCompare = a.date.getTime() - b.date.getTime();
+        return dateCompare !== 0 ? dateCompare : a.time.localeCompare(b.time);
+      });
+      setWeekActivities(weekEvents);
+
+    } catch (error) {
+      console.error('Error loading activity data:', error);
     }
   }
 
@@ -145,7 +395,7 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadContracts();
+    await loadDashboardData();
     setRefreshing(false);
   }
 
@@ -311,21 +561,21 @@ export default function HomeScreen() {
         {/* Details */}
         <View style={styles.contractDetails}>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
+            <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
             <Text style={styles.detailLabel}>Παραλαβή:</Text>
             <Text style={styles.detailValue}>
               {new Date(contract.rentalPeriod.pickupDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.pickupTime}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
+            <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
             <Text style={styles.detailLabel}>Επιστροφή:</Text>
             <Text style={styles.detailValue}>
               {new Date(contract.rentalPeriod.dropoffDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.dropoffTime}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={16} color={Colors.textSecondary} />
+            <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
             <Text style={styles.detailLabel}>Τοποθεσία:</Text>
             <Text style={styles.detailValue} numberOfLines={1}>
               {contract.rentalPeriod.pickupLocation}
@@ -336,27 +586,192 @@ export default function HomeScreen() {
         {/* Footer */}
         <View style={styles.contractFooter}>
           <View style={styles.priceContainer}>
-            <Ionicons name="cash-outline" size={18} color={Colors.primary} />
+            <Ionicons name="cash-outline" size={16} color={Colors.primary} />
             <Text style={styles.priceValue}>€{contract.rentalPeriod.totalCost || 0}</Text>
           </View>
           <View style={styles.footerIcons}>
             {contract.damagePoints && contract.damagePoints.length > 0 && (
               <View style={styles.footerIconBadge}>
-                <Ionicons name="warning" size={16} color={Colors.warning} />
+                <Ionicons name="warning" size={14} color={Colors.warning} />
                 <Text style={styles.footerIconBadgeText}>{contract.damagePoints.length}</Text>
               </View>
             )}
             {(contract.aadeStatus === 'submitted' || contract.aadeStatus === 'completed') && (
               <View style={styles.aadeBadgeHome}>
-                <Ionicons name="cloud-done" size={14} color="#28a745" />
+                <Ionicons name="cloud-done" size={12} color="#28a745" />
                 <Text style={styles.aadeBadgeTextHome}>ΑΑΔΕ</Text>
               </View>
             )}
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
           </View>
         </View>
       </TouchableOpacity>
     );
+  }
+
+  function renderFleetAvailabilitySection() {
+    return (
+      <View style={styles.statsSection}>
+        <Text style={styles.sectionTitle}>Διαθεσιμότητα Στόλου</Text>
+        <View style={styles.statsGrid}>
+          {renderStatsCard('car-outline', 'Σύνολο', fleetAvailability.totalVehicles, Colors.text, () => router.push('/(tabs)/cars'))}
+          {renderStatsCard('checkmark-circle', 'Διαθέσιμα', fleetAvailability.availableVehicles, Colors.success)}
+          {renderStatsCard('time-outline', 'Ενοικιαζόμενα', fleetAvailability.rentedVehicles, Colors.info)}
+          {renderStatsCard('warning', 'Κατάσταση', fleetAvailability.maintenanceVehicles, '#FF9500')}
+        </View>
+      </View>
+    );
+  }
+
+  function renderMaintenanceAlertsSection() {
+    if (maintenanceAlerts.length === 0) return null;
+
+    return (
+      <View style={styles.urgentSection}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderLeft}>
+            <Ionicons name="warning" size={16} color={Colors.error} />
+            <Text style={styles.sectionTitle}>Επείγοντες Ενημερώσεις</Text>
+          </View>
+          {fleetAvailability.urgentMaintenanceCount > 0 && (
+            <View style={styles.urgentBadge}>
+              <Text style={styles.urgentBadgeText}>{fleetAvailability.urgentMaintenanceCount}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.urgentCard}>
+          {maintenanceAlerts.slice(0, 3).map((alert, index) => (
+            <TouchableOpacity
+              key={alert.vehicleId + alert.alertType}
+              style={[styles.urgentItem, index < maintenanceAlerts.slice(0, 3).length - 1 && styles.urgentItemBorder]}
+              onPress={() => router.push(`/car-details?licensePlate=${alert.vehicleName.split('(')[1].replace(')', '')}`)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.urgentDot, { backgroundColor: alert.urgency.color }]} />
+              <View style={styles.urgentContent}>
+                <Text style={styles.urgentVehicle} numberOfLines={1}>
+                  {getAlertTypeLabel(alert.alertType)}
+                </Text>
+                <Text style={styles.urgentPlate} numberOfLines={1}>
+                  {alert.vehicleName}
+                </Text>
+              </View>
+              <Text style={[styles.urgentTime, { color: alert.urgency.color }]}>
+                {alert.urgency.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {maintenanceAlerts.length > 3 && (
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => router.push('/(tabs)/maintenance')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllText}>Προβολή Όλων ({maintenanceAlerts.length})</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  function renderActivitySection() {
+    const activities = activityView === 'today' ? todayActivities : weekActivities;
+
+    return (
+      <View style={styles.activitySection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {activityView === 'today' ? 'Σήμερα' : 'Εβδομάδα'}
+          </Text>
+          <View style={styles.activityToggle}>
+            <TouchableOpacity
+              style={[styles.toggleButton, activityView === 'today' && styles.toggleButtonActive]}
+              onPress={() => setActivityView('today')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.toggleText, activityView === 'today' && styles.toggleTextActive]}>Σήμερα</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, activityView === 'week' && styles.toggleButtonActive]}
+              onPress={() => setActivityView('week')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.toggleText, activityView === 'week' && styles.toggleTextActive]}>Εβδομάδα</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.activityCard}>
+          {activities.length === 0 ? (
+            <View style={styles.noActivityContainer}>
+              <Ionicons name="calendar-outline" size={32} color={Colors.textSecondary} />
+              <Text style={styles.noActivityText}>
+                {activityView === 'today' ? 'Δεν υπάρχουν εκκρεμότητες σήμερα' : 'Δεν υπάρχουν εκκρεμότητες αυτή την εβδομάδα'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              {activities.slice(0, 4).map((activity, index) => (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={[styles.activityItem, index < Math.min(activities.length, 4) - 1 && styles.activityItemBorder]}
+                  onPress={() => router.push(`/contract-details?contractId=${activity.contractId}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.activityIconContainer, { backgroundColor: activity.type === 'pickup' ? Colors.success + '20' : Colors.warning + '20' }]}>
+                    <Ionicons
+                      name={activity.type === 'pickup' ? 'arrow-down-circle' : 'arrow-up-circle'}
+                      size={20}
+                      color={activity.type === 'pickup' ? Colors.success : Colors.warning}
+                    />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityTitle} numberOfLines={1}>
+                      {activity.type === 'pickup' ? '🟢 Παραλαβή' : '🔴 Επιστροφή'}
+                    </Text>
+                    <Text style={styles.activityDetails} numberOfLines={1}>
+                      {activity.customerName} • {activity.vehicleName}
+                    </Text>
+                  </View>
+                  <View style={styles.activityRightInfo}>
+                    <Text style={styles.activityLocationDate} numberOfLines={1}>
+                      {format(activity.date, 'dd/MM', { locale: el })}
+                    </Text>
+                    <Text style={styles.activityLocationText} numberOfLines={1}>
+                      {activity.location}
+                    </Text>
+                  </View>
+                  <Text style={styles.activityTime}>
+                    {activity.time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {activities.length > 4 && (
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => router.push('/(tabs)/calendar')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.viewAllText}>Προβολή Full Ημερολογίου</Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  function getAlertTypeLabel(type: string): string {
+    switch (type) {
+      case 'kteo': return 'ΚΤΕΟ';
+      case 'insurance': return 'Ασφάλεια';
+      case 'tires': return 'Ελαστικά';
+      case 'service': return 'Σέρβις';
+      default: return type;
+    }
   }
 
   function renderEmptyState() {
@@ -395,42 +810,57 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Dashboard Stats */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Επισκόπηση</Text>
-          <View style={styles.statsGrid}>
-            {renderStatsCard('documents', 'Συνολικά', stats.totalContracts, Colors.primary, () => setActiveFilter('all'))}
-            {renderStatsCard('checkmark-circle', 'Ενεργά', stats.activeContracts, Colors.success, () => setActiveFilter('active'))}
-            {renderStatsCard('time', 'Επερχόμενα', stats.upcomingContracts, Colors.info, () => setActiveFilter('upcoming'))}
-            {renderStatsCard('checkmark-done', 'Ολοκληρωμένα', stats.completedContracts, Colors.textSecondary, () => setActiveFilter('completed'))}
+        {loadingDashboard ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Φόρτωση δεδομένων...</Text>
           </View>
-        </View>
+        ) : (
+          <>
+            {/* Fleet Availability */}
+            {renderFleetAvailabilitySection()}
 
-        {/* Revenue Stats */}
-        <View style={styles.revenueSection}>
-          <View style={styles.revenueCard}>
-            <View style={styles.revenueCardLeft}>
-              <View style={[styles.revenueIcon, { backgroundColor: Colors.success + '15' }]}>
-                <Ionicons name="trending-up" size={28} color={Colors.success} />
-              </View>
-              <View>
-                <Text style={styles.revenueLabel}>Συνολικά Εσοδα</Text>
-                <Text style={styles.revenueValue}>€{stats.totalRevenue.toLocaleString()}</Text>
+            {/* Urgent Maintenance Alerts */}
+            {renderMaintenanceAlertsSection()}
+
+            {/* Today/Week Activity */}
+            {renderActivitySection()}
+
+            {/* Revenue Stats - Compact Single Card */}
+            <View style={styles.revenueSection}>
+              <View style={styles.revenueCard}>
+                <View style={styles.revenueRow}>
+                  <View style={styles.revenueItem}>
+                    <Ionicons name="trending-up" size={18} color={Colors.success} />
+                    <View style={styles.revenueTextContainer}>
+                      <Text style={styles.revenueLabel}>Συνολικά</Text>
+                      <Text style={styles.revenueValue}>€{stats.totalRevenue.toLocaleString()}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.revenueDivider} />
+                  <View style={styles.revenueItem}>
+                    <Ionicons name="calendar" size={18} color={Colors.primary} />
+                    <View style={styles.revenueTextContainer}>
+                      <Text style={styles.revenueLabel}>Αυτόν τον Μήνα</Text>
+                      <Text style={styles.revenueValue}>€{stats.revenueThisMonth.toLocaleString()}</Text>
+                    </View>
+                  </View>
+                </View>
               </View>
             </View>
-          </View>
-          <View style={styles.revenueCard}>
-            <View style={styles.revenueCardLeft}>
-              <View style={[styles.revenueIcon, { backgroundColor: Colors.primary + '15' }]}>
-                <Ionicons name="calendar" size={28} color={Colors.primary} />
-              </View>
-              <View>
-                <Text style={styles.revenueLabel}>Αυτόν τον Μήνα</Text>
-                <Text style={styles.revenueValue}>€{stats.revenueThisMonth.toLocaleString()}</Text>
+
+            {/* Contract Stats */}
+            <View style={styles.statsSection}>
+              <Text style={styles.sectionTitle}>Συμβόλαια</Text>
+              <View style={styles.statsGrid}>
+                {renderStatsCard('documents', 'Συνολικά', stats.totalContracts, Colors.primary, () => setActiveFilter('all'))}
+                {renderStatsCard('checkmark-circle', 'Ενεργά', stats.activeContracts, Colors.success, () => setActiveFilter('active'))}
+                {renderStatsCard('time', 'Επερχόμενα', stats.upcomingContracts, Colors.info, () => setActiveFilter('upcoming'))}
+                {renderStatsCard('checkmark-done', 'Ολοκληρωμένα', stats.completedContracts, Colors.textSecondary, () => setActiveFilter('completed'))}
               </View>
             </View>
-          </View>
-        </View>
+          </>
+        )}
 
         {/* Search Bar */}
         <View style={styles.searchSection}>
@@ -504,49 +934,51 @@ const styles = StyleSheet.create({
   // Stats Section
   statsSection: {
     paddingHorizontal: 8,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 4,
   },
   statCard: {
     flex: 1,
     minWidth: '47%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 10,
+    padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
     ...Shadows.sm,
   },
   statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 6,
   },
   statContent: {
     flex: 1,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
@@ -554,27 +986,32 @@ const styles = StyleSheet.create({
   revenueSection: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
   revenueCard: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 10,
     ...Shadows.sm,
   },
-  revenueCardLeft: {
+  revenueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  revenueItem: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  revenueIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+  revenueTextContainer: {
+    flex: 1,
+  },
+  revenueDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: Colors.borderLight,
   },
   revenueLabel: {
     fontSize: 10,
@@ -655,8 +1092,8 @@ const styles = StyleSheet.create({
   // Contract Card
   contractCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    padding: 10,
     marginBottom: 6,
     ...Shadows.sm,
   },
@@ -664,7 +1101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   contractHeaderLeft: {
     flexDirection: 'row',
@@ -673,10 +1110,10 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginRight: 4,
   },
   contractHeaderInfo: {
     flex: 1,
@@ -684,56 +1121,56 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     marginBottom: 2,
   },
   contractName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.text,
     flex: 1,
   },
   phoneButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: Colors.primary + '15',
     alignItems: 'center',
     justifyContent: 'center',
   },
   contractCar: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   statusBadgeText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   contractDetails: {
-    marginBottom: 8,
-    gap: 4,
+    marginBottom: 6,
+    gap: 3,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   detailLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.textSecondary,
-    width: 70,
+    width: 65,
     fontWeight: '500',
   },
   detailValue: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.text,
     fontWeight: '600',
     flex: 1,
@@ -742,7 +1179,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 6,
+    paddingTop: 4,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
   },
@@ -752,7 +1189,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   priceValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.primary,
   },
@@ -765,29 +1202,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.warning + '15',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    gap: 3,
   },
   footerIconBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: Colors.warning,
   },
   aadeBadgeHome: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     backgroundColor: '#28a74515',
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#28a74530',
   },
   aadeBadgeTextHome: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     color: '#28a745',
     letterSpacing: 0.5,
@@ -835,5 +1272,200 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Loading State
+  loadingContainer: {
+    paddingVertical: Spacing.xl * 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: Spacing.md,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  // Section Header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  // Urgent Maintenance Section
+  urgentSection: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  urgentBadge: {
+    backgroundColor: Colors.error,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  urgentBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  urgentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    overflow: 'hidden',
+    ...Shadows.sm,
+  },
+  urgentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 10,
+  },
+  urgentItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  urgentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  urgentContent: {
+    flex: 1,
+  },
+  urgentVehicle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  urgentPlate: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  urgentTime: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // Activity Section
+  activitySection: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  activityToggle: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    padding: 3,
+    gap: 3,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  toggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+  },
+  activityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    overflow: 'hidden',
+    ...Shadows.sm,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 10,
+  },
+  activityItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  activityIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  activityDetails: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  activityRightInfo: {
+    alignItems: 'flex-end',
+    marginRight: 8,
+    maxWidth: 120,
+  },
+  activityLocationDate: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  activityLocationText: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  activityTime: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  noActivityContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl * 2,
+    paddingHorizontal: Spacing.lg,
+  },
+  noActivityText: {
+    marginTop: Spacing.md,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    gap: 6,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
   },
 });
