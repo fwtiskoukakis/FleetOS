@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Alert, Platform, Animated, StatusBar } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthService } from '../services/auth.service';
 import { Colors, Typography, Spacing, Glass, BorderRadius, BlurIntensity } from '../utils/design-system';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FleetOSHeaderLogo } from './fleetos-logo';
 import { useThemeColors } from '../contexts/theme-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AppHeaderProps {
   showBack?: boolean;
@@ -24,6 +26,7 @@ interface UserInfo {
 export function AppHeader({ showBack = false, title, showActions = true, onBackPress }: AppHeaderProps) {
   const router = useRouter();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo>({
     name: 'User',
@@ -83,18 +86,68 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
     { icon: 'people', label: 'Χρήστες', route: '/user-management' },
   ];
 
+  const gradientSets = useMemo(
+    () => [
+      ['rgba(15,23,42,0.92)', 'rgba(14,165,233,0.24)'],
+      ['rgba(12,74,110,0.9)', 'rgba(45,212,191,0.24)'],
+      ['rgba(49,46,129,0.9)', 'rgba(192,132,252,0.25)'],
+    ],
+    []
+  );
+  const [currentGradient, setCurrentGradient] = useState(0);
+  const [nextGradient, setNextGradient] = useState(1 % gradientSets.length);
+  const gradientFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const upcoming = (currentGradient + 1) % gradientSets.length;
+      setNextGradient(upcoming);
+      gradientFade.setValue(0);
+      Animated.timing(gradientFade, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      }).start(() => {
+        setCurrentGradient(upcoming);
+        gradientFade.setValue(0);
+      });
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [currentGradient, gradientFade, gradientSets.length]);
+
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : insets.top;
+
   return (
     <>
-      <BlurView intensity={BlurIntensity.regular} tint="light" style={[styles.container, { backgroundColor: colors.glass }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="rgba(15,23,42,0.95)" />
+      <View style={styles.wrapper}>
+        <View style={styles.gradientWrapper}>
+        <LinearGradient
+          colors={gradientSets[currentGradient]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        />
+        <Animated.View style={[styles.gradientOverlay, { opacity: gradientFade }]}>
+          <LinearGradient
+            colors={gradientSets[nextGradient]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradient}
+          />
+        </Animated.View>
+      </View>
+      <View style={styles.container}>
         <View style={styles.content}>
           {/* Left */}
           {showBack ? (
-            <TouchableOpacity onPress={onBackPress || (() => router.back())} style={styles.iconButton} activeOpacity={0.6}>
-              <Ionicons name="chevron-back" size={28} color={colors.primary} />
+            <TouchableOpacity onPress={onBackPress || (() => router.back())} style={styles.iconButton} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={26} color={colors.primary} />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={() => router.push('/')} style={styles.logoContainer} activeOpacity={0.6}>
-              <FleetOSHeaderLogo size={160} />
+            <TouchableOpacity onPress={() => router.push('/')} style={styles.logoContainer} activeOpacity={0.7}>
+              <FleetOSHeaderLogo size={150} />
             </TouchableOpacity>
           )}
 
@@ -104,24 +157,22 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
           {/* Right */}
           {showActions && (
             <View style={styles.rightActions}>
-              <TouchableOpacity onPress={() => router.push('/calendar')} style={styles.actionIcon} activeOpacity={0.6}>
-                <Ionicons name="calendar-outline" size={22} color={colors.text} />
+              <TouchableOpacity onPress={() => router.push('/calendar')} style={styles.actionIcon} activeOpacity={0.7}>
+                <Ionicons name="calendar-outline" size={21} color={colors.text} />
               </TouchableOpacity>
               
-              <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.actionIcon} activeOpacity={0.6}>
-                <Ionicons name="notifications-outline" size={22} color={colors.text} />
-                {/* TODO: Add badge for unread notifications count */}
+              <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.actionIcon} activeOpacity={0.7}>
+                <Ionicons name="notifications-outline" size={21} color={colors.text} />
               </TouchableOpacity>
               
-              <TouchableOpacity onPress={() => setShowUserMenu(true)} style={[styles.avatar, { backgroundColor: colors.primary }]} activeOpacity={0.6}>
-                <Text style={[styles.avatarText, { color: colors.textInverse }]}>{userInfo.avatarLetter}</Text>
+              <TouchableOpacity onPress={() => setShowUserMenu(true)} style={[styles.avatar, { backgroundColor: colors.primary }]} activeOpacity={0.7}>
+                <Text style={styles.avatarText}>{userInfo.avatarLetter}</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
-      </BlurView>
+      </View>
 
-      {/* User Menu Modal */}
       <Modal visible={showUserMenu} transparent animationType="fade" onRequestClose={() => setShowUserMenu(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowUserMenu(false)}>
           <BlurView intensity={BlurIntensity.strong} tint="dark" style={styles.overlayBlur}>
@@ -171,35 +222,51 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
           </BlurView>
         </Pressable>
       </Modal>
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  gradientWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    pointerEvents: 'none',
+    zIndex: -1,
+  },
+  gradient: {
+    flex: 1,
+    opacity: 0.9,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   container: {
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(8, 47, 73, 0.25)',
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 44,
+    height: 48,
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   logoContainer: {
-    height: 44,
-    paddingHorizontal: 8,
+    height: 42,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -213,14 +280,20 @@ const styles = StyleSheet.create({
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   actionIcon: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   avatar: {
     width: 36,
@@ -229,6 +302,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   avatarText: {
     ...Typography.subheadline,

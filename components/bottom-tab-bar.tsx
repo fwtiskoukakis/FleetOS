@@ -67,7 +67,8 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
 
   return (
     <View style={styles.container}>
-      <BlurView intensity={80} tint="light" style={[styles.blurContainer, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
+      <BlurView intensity={65} tint="light" style={styles.blurContainer}>
+        <View style={styles.glassEdge} />
         <View style={styles.tabBar}>
           {tabs.map((tab) => {
             const active = isActive(tab.route);
@@ -76,7 +77,7 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
                 key={tab.key}
                 style={styles.tab}
                 onPress={() => handleTabPress(tab)}
-                activeOpacity={0.6}
+                activeOpacity={0.65}
               >
                 {active && <View style={styles.activeBackground} />}
                 <View style={styles.tabContent}>
@@ -108,28 +109,37 @@ const styles = StyleSheet.create({
     bottom: 10,
     left: 0,
     right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
-    paddingHorizontal: 8,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 14,
+    paddingHorizontal: 16,
     backgroundColor: 'transparent',
     zIndex: 10,
   },
   blurContainer: {
-    borderRadius: 32,
+    borderRadius: 36,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 12,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
+    elevation: 14,
+  },
+  glassEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    opacity: 0.9,
   },
   tabBar: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    minHeight: 72,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    minHeight: 74,
     alignItems: 'center',
     justifyContent: 'space-around',
   },
@@ -143,12 +153,12 @@ const styles = StyleSheet.create({
   },
   activeBackground: {
     position: 'absolute',
-    top: 4,
-    left: 4,
-    right: 4,
-    bottom: 4,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.08)',
+    top: 6,
+    left: 6,
+    right: 6,
+    bottom: 6,
+    borderRadius: 22,
+    backgroundColor: 'rgba(14, 165, 233, 0.18)',
   },
   tabContent: {
     alignItems: 'center',
@@ -161,7 +171,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10.5,
-    color: '#8E8E93',
+    color: 'rgba(60, 60, 67, 0.55)',
     fontWeight: '500',
     textAlign: 'center',
     letterSpacing: -0.1,

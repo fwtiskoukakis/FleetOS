@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   Alert,
   Platform,
   Switch,
-  Image,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,11 +25,15 @@ import { SupabaseContractService } from '../services/supabase-contract.service';
 import { AuthService } from '../services/auth.service';
 import { PhotoStorageService } from '../services/photo-storage.service';
 import { CarService } from '../services/car.service';
+import { Car } from '../models/car.interface';
 import Svg, { Path } from 'react-native-svg';
 import { format } from 'date-fns/format';
 import * as ImagePicker from 'expo-image-picker';
 
 type CarView = 'front' | 'rear' | 'left' | 'right';
+
+const LOCATION_OPTIONS = ['Piraeus Office', 'Piraeus Port', 'Athens Airport', 'Other'] as const;
+type LocationOption = typeof LOCATION_OPTIONS[number];
 
 /**
  * Compact contract creation screen optimized for mobile use
@@ -37,6 +42,15 @@ export default function NewContractScreen() {
   const router = useRouter();
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
+  const [availableCars, setAvailableCars] = useState<Car[]>([]);
+  const [isVehicleModalVisible, setIsVehicleModalVisible] = useState(false);
+  const [isLoadingCars, setIsLoadingCars] = useState(true);
+  const [vehicleSearchQuery, setVehicleSearchQuery] = useState('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [pickupLocationOption, setPickupLocationOption] = useState<LocationOption>('Piraeus Office');
+  const [pickupCustomLocation, setPickupCustomLocation] = useState('');
+  const [dropoffLocationOption, setDropoffLocationOption] = useState<LocationOption>('Piraeus Office');
+  const [dropoffCustomLocation, setDropoffCustomLocation] = useState('');
   
   // Essential fields only
   const [renterInfo, setRenterInfo] = useState<RenterInfo>({
@@ -53,10 +67,10 @@ export default function NewContractScreen() {
   const [rentalPeriod, setRentalPeriod] = useState<RentalPeriod>({
     pickupDate: new Date(),
     pickupTime: format(new Date(), 'HH:mm'),
-    pickupLocation: '',
+    pickupLocation: 'Piraeus Office',
     dropoffDate: new Date(),
     dropoffTime: format(new Date(), 'HH:mm'),
-    dropoffLocation: '',
+    dropoffLocation: 'Piraeus Office',
     isDifferentDropoffLocation: false,
     totalCost: 0,
   });
@@ -87,8 +101,6 @@ export default function NewContractScreen() {
   const [clientSignaturePaths, setClientSignaturePaths] = useState<string[]>([]);
   const [observations, setObservations] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
-  const [previousDamages, setPreviousDamages] = useState<any[]>([]);
-  const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [savedContractId, setSavedContractId] = useState<string | null>(null);
 
   // Date picker states
@@ -102,17 +114,37 @@ export default function NewContractScreen() {
 
   function applyTemplateData(template: ContractTemplate) {
     const templateData = template.templateData;
+    const templatePickup = templateData.defaultPickupLocation || 'Piraeus Office';
+    const pickupIsPreset = LOCATION_OPTIONS.includes(templatePickup as LocationOption);
+    const resolvedPickupOption: LocationOption = pickupIsPreset
+      ? (templatePickup as LocationOption)
+      : 'Other';
+    const resolvedPickupValue = resolvedPickupOption === 'Other' ? templatePickup : resolvedPickupOption;
+
+    const templateDropoff = templateData.defaultDropoffLocation || templatePickup;
+    const dropoffIsPreset = LOCATION_OPTIONS.includes(templateDropoff as LocationOption);
+    const resolvedDropoffOption: LocationOption = dropoffIsPreset
+      ? (templateDropoff as LocationOption)
+      : 'Other';
+    const resolvedDropoffValue = resolvedDropoffOption === 'Other' ? templateDropoff : resolvedDropoffOption;
     
     // Apply template defaults
     setRentalPeriod(prev => ({
       ...prev,
       pickupTime: templateData.defaultPickupTime,
       dropoffTime: templateData.defaultDropoffTime,
-      pickupLocation: templateData.defaultPickupLocation,
-      dropoffLocation: templateData.defaultDropoffLocation,
+      pickupLocation: resolvedPickupValue,
+      dropoffLocation: resolvedDropoffValue,
+      isDifferentDropoffLocation: resolvedDropoffValue !== resolvedPickupValue,
       depositAmount: templateData.depositAmount,
       insuranceCost: templateData.insuranceCost,
     }));
+
+    setPickupLocationOption(resolvedPickupOption);
+    setPickupCustomLocation(resolvedPickupOption === 'Other' ? templatePickup : '');
+
+    setDropoffLocationOption(resolvedDropoffOption);
+    setDropoffCustomLocation(resolvedDropoffOption === 'Other' ? templateDropoff : '');
 
     // Set car condition defaults
     setCarCondition(prev => ({
@@ -131,58 +163,138 @@ export default function NewContractScreen() {
     // Continue with manual contract creation
   }
 
-  /**
-   * Handle license plate change and auto-populate vehicle data
-   */
-  async function handleLicensePlateChange(plate: string) {
-    // Update the license plate
-    setCarInfo(prev => ({ ...prev, licensePlate: plate }));
-    
-    // Only search if plate has enough characters
-    if (plate.length < 3) {
-      setPreviousDamages([]);
-      return;
-    }
-    
-    try {
-      setIsLoadingVehicle(true);
-      
-      // Search for car by license plate
-      const car = await CarService.getCarByPlate(plate);
-      
-      if (car) {
-        // Auto-fill car information
-        const makeModel = `${car.make} ${car.model}`;
-        setCarInfo(prev => ({
-          ...prev,
-          makeModel,
-          make: car.make,
-          model: car.model,
-          year: car.year || new Date().getFullYear(),
-          licensePlate: plate,
-          category: car.category || undefined,
-          color: car.color || undefined,
-        }));
-        
-        // TODO: Load previous damages from damage_points table by license plate
-        setPreviousDamages([]);
-        
-        // Show alert with car info
-        Alert.alert(
-          'Οχημα Βρέθηκε',
-          `${makeModel} (${car.year})`,
-          [{ text: 'OK' }]
-        );
-      } else {
-        // No car found - clear previous damages
-        setPreviousDamages([]);
+  useEffect(() => {
+    async function loadCars() {
+      try {
+        setIsLoadingCars(true);
+        const cars = await CarService.getAllCars();
+        setAvailableCars(cars);
+      } catch (error) {
+        console.error('Error loading cars:', error);
+        Alert.alert('Σφάλμα', 'Αποτυχία φόρτωσης οχημάτων. Δοκιμάστε ξανά.');
+      } finally {
+        setIsLoadingCars(false);
       }
-    } catch (error) {
-      console.error('Error loading vehicle:', error);
-      setPreviousDamages([]);
-    } finally {
-      setIsLoadingVehicle(false);
     }
+    loadCars();
+  }, []);
+
+  const filteredCars = useMemo(() => {
+    if (!vehicleSearchQuery.trim()) {
+      return availableCars;
+    }
+    const query = vehicleSearchQuery.trim().toLowerCase();
+    return availableCars.filter(car =>
+      car.licensePlate.toLowerCase().includes(query) ||
+      (car.makeModel || '').toLowerCase().includes(query) ||
+      `${car.make} ${car.model}`.toLowerCase().includes(query)
+    );
+  }, [availableCars, vehicleSearchQuery]);
+
+  function handleVehicleSelect(car: Car) {
+    const makeModel = car.makeModel || `${car.make} ${car.model}`.trim();
+    setSelectedVehicleId(car.id);
+    setCarInfo(prev => ({
+      ...prev,
+      makeModel,
+      make: car.make,
+      model: car.model,
+      year: car.year || new Date().getFullYear(),
+      licensePlate: car.licensePlate,
+      category: car.category || undefined,
+      color: car.color || undefined,
+    }));
+    setVehicleSearchQuery('');
+    setIsVehicleModalVisible(false);
+  }
+
+  function handlePickupOptionChange(option: LocationOption) {
+    if (!rentalPeriod.isDifferentDropoffLocation) {
+      setDropoffLocationOption(option);
+      if (option !== 'Other') {
+        setDropoffCustomLocation('');
+      }
+    }
+
+    setPickupLocationOption(option);
+    if (option !== 'Other') {
+      setPickupCustomLocation('');
+    }
+
+    setRentalPeriod(prev => {
+      const resolved = option === 'Other' ? pickupCustomLocation.trim() : option;
+      return {
+        ...prev,
+        pickupLocation: resolved,
+        dropoffLocation: prev.isDifferentDropoffLocation ? prev.dropoffLocation : resolved,
+      };
+    });
+  }
+
+  function handlePickupCustomChange(text: string) {
+    setPickupCustomLocation(text);
+    if (!rentalPeriod.isDifferentDropoffLocation) {
+      setDropoffCustomLocation(text);
+    }
+
+    setRentalPeriod(prev => {
+      const resolved = pickupLocationOption === 'Other' ? text.trim() : pickupLocationOption;
+      return {
+        ...prev,
+        pickupLocation: resolved,
+        dropoffLocation: prev.isDifferentDropoffLocation ? prev.dropoffLocation : resolved,
+      };
+    });
+  }
+
+  function handleDropoffOptionChange(option: LocationOption) {
+    setDropoffLocationOption(option);
+    if (option !== 'Other') {
+      setDropoffCustomLocation('');
+    }
+
+    setRentalPeriod(prev => {
+      if (!prev.isDifferentDropoffLocation) {
+        return prev;
+      }
+      const resolved = option === 'Other' ? dropoffCustomLocation.trim() : option;
+      return {
+        ...prev,
+        dropoffLocation: resolved,
+      };
+    });
+  }
+
+  function handleDropoffCustomChange(text: string) {
+    setDropoffCustomLocation(text);
+    setRentalPeriod(prev => {
+      if (!prev.isDifferentDropoffLocation) {
+        return prev;
+      }
+      const resolved = dropoffLocationOption === 'Other' ? text.trim() : dropoffLocationOption;
+      return {
+        ...prev,
+        dropoffLocation: resolved,
+      };
+    });
+  }
+
+  function handleDropoffToggle(value: boolean) {
+    if (!value) {
+      setDropoffLocationOption(pickupLocationOption);
+      setDropoffCustomLocation(pickupLocationOption === 'Other' ? pickupCustomLocation : '');
+    }
+
+    setRentalPeriod(prev => {
+      const resolved = value
+        ? (dropoffLocationOption === 'Other' ? dropoffCustomLocation.trim() : dropoffLocationOption)
+        : prev.pickupLocation;
+      return {
+        ...prev,
+        isDifferentDropoffLocation: value,
+        dropoffLocation: resolved,
+      };
+    });
   }
 
   function handleSignatureSave(uri: string) {
@@ -529,8 +641,68 @@ export default function NewContractScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <>
+      <Modal
+        visible={isVehicleModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsVehicleModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsVehicleModalVisible(false)}
+          />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Επιλογή Οχήματος</Text>
+              <TouchableOpacity onPress={() => setIsVehicleModalVisible(false)}>
+                <Text style={styles.modalCloseText}>Κλείσιμο</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="Αναζήτηση πινακίδας ή μοντέλου..."
+              value={vehicleSearchQuery}
+              onChangeText={setVehicleSearchQuery}
+            />
+            {isLoadingCars ? (
+              <View style={styles.modalLoadingContainer}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.modalLoadingText}>Φόρτωση οχημάτων...</Text>
+              </View>
+            ) : filteredCars.length > 0 ? (
+              <ScrollView style={styles.modalList}>
+                {filteredCars.map((car) => {
+                  const displayName = car.makeModel || `${car.make} ${car.model}`.trim();
+                  const isSelected = selectedVehicleId === car.id;
+                  return (
+                    <TouchableOpacity
+                      key={car.id}
+                      style={[styles.modalOption, isSelected && styles.modalOptionActive]}
+                      onPress={() => handleVehicleSelect(car)}
+                    >
+                      <View>
+                        <Text style={styles.modalOptionTitle}>{displayName}</Text>
+                        <Text style={styles.modalOptionSubtitle}>{car.licensePlate}</Text>
+                      </View>
+                      {isSelected && <Text style={styles.modalOptionCheck}>✓</Text>}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View style={styles.modalEmptyState}>
+                <Text style={styles.modalEmptyText}>Δεν βρέθηκαν οχήματα.</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerContainer}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Πίσω</Text>
@@ -634,12 +806,41 @@ export default function NewContractScreen() {
             </View>
           </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Τοποθεσία παραλαβής *"
-            value={rentalPeriod.pickupLocation}
-            onChangeText={(text) => setRentalPeriod({ ...rentalPeriod, pickupLocation: text })}
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Τοποθεσία παραλαβής *</Text>
+            <View style={styles.locationOptions}>
+              {LOCATION_OPTIONS.map((option) => {
+                const isActive = pickupLocationOption === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.locationOptionButton,
+                      isActive && styles.locationOptionButtonActive,
+                    ]}
+                    onPress={() => handlePickupOptionChange(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.locationOptionText,
+                        isActive && styles.locationOptionTextActive,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {pickupLocationOption === 'Other' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Καταχώριση τοποθεσίας"
+                value={pickupCustomLocation}
+                onChangeText={handlePickupCustomChange}
+              />
+            )}
+          </View>
 
           <TextInput
             style={styles.input}
@@ -652,18 +853,47 @@ export default function NewContractScreen() {
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Διαφορετική τοποθεσία επιστροφής</Text>
             <Switch
-              onValueChange={(value) => setRentalPeriod({ ...rentalPeriod, isDifferentDropoffLocation: value })}
+              onValueChange={handleDropoffToggle}
               value={rentalPeriod.isDifferentDropoffLocation}
             />
           </View>
 
           {rentalPeriod.isDifferentDropoffLocation && (
-            <TextInput
-              style={styles.input}
-              placeholder="Τοποθεσία επιστροφής *"
-              value={rentalPeriod.dropoffLocation}
-              onChangeText={(text) => setRentalPeriod({ ...rentalPeriod, dropoffLocation: text })}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Τοποθεσία επιστροφής *</Text>
+              <View style={styles.locationOptions}>
+                {LOCATION_OPTIONS.map((option) => {
+                  const isActive = dropoffLocationOption === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.locationOptionButton,
+                        isActive && styles.locationOptionButtonActive,
+                      ]}
+                      onPress={() => handleDropoffOptionChange(option)}
+                    >
+                      <Text
+                        style={[
+                          styles.locationOptionText,
+                          isActive && styles.locationOptionTextActive,
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {dropoffLocationOption === 'Other' && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="Καταχώριση τοποθεσίας"
+                  value={dropoffCustomLocation}
+                  onChangeText={handleDropoffCustomChange}
+                />
+              )}
+            </View>
           )}
         </View>
 
@@ -671,30 +901,23 @@ export default function NewContractScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>3. Οχημα & Κατάσταση</Text>
           
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, styles.halfWidth]}
-              placeholder="Μάρκα & Μοντέλο"
-              value={carInfo.makeModel}
-              onChangeText={(text) => setCarInfo({ ...carInfo, makeModel: text })}
-            />
-            <View style={styles.halfWidth}>
-              <TextInput
-                style={styles.input}
-                placeholder="Πινακίδα *"
-                value={carInfo.licensePlate}
-                onChangeText={handleLicensePlateChange}
-                autoCapitalize="characters"
-              />
-              {isLoadingVehicle && (
-                <Text style={styles.helperText}>Αναζήτηση οχήματος...</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Όχημα *</Text>
+            <TouchableOpacity
+              style={styles.selectorInput}
+              onPress={() => setIsVehicleModalVisible(true)}
+            >
+              {carInfo.licensePlate ? (
+                <View>
+                  <Text style={styles.selectorPrimaryText}>
+                    {carInfo.makeModel || `${carInfo.make} ${carInfo.model}`.trim()}
+                  </Text>
+                  <Text style={styles.selectorSecondaryText}>{carInfo.licensePlate}</Text>
+                </View>
+              ) : (
+                <Text style={styles.selectorPlaceholder}>Επιλέξτε όχημα από τον στόλο</Text>
               )}
-              {previousDamages.length > 0 && !isLoadingVehicle && (
-                <Text style={styles.helperTextSuccess}>
-                  ✓ {previousDamages.length} προηγούμενες ζημιές
-                </Text>
-              )}
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.row}>
@@ -867,6 +1090,7 @@ export default function NewContractScreen() {
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
+    </>
   );
 }
 
@@ -949,6 +1173,27 @@ const styles = StyleSheet.create({
     color: '#333',
     backgroundColor: '#f5f5f5',
   },
+  selectorInput: {
+    borderRadius: 6,
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e2e2e2',
+  },
+  selectorPrimaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+  },
+  selectorSecondaryText: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 2,
+  },
+  selectorPlaceholder: {
+    fontSize: 14,
+    color: '#888',
+  },
   label: {
     fontSize: 12,
     fontWeight: '600',
@@ -985,6 +1230,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+  },
+  locationOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 6,
+    marginHorizontal: -4,
+  },
+  locationOptionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#d0d7e2',
+    marginHorizontal: 4,
+    marginBottom: 6,
+  },
+  locationOptionButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  locationOptionText: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  locationOptionTextActive: {
+    color: '#fff',
   },
   fuelContainer: {
     marginTop: 5,
@@ -1128,6 +1401,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    maxHeight: '80%',
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalCloseText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  modalSearchInput: {
+    borderRadius: 8,
+    backgroundColor: '#f2f4f7',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111',
+    marginBottom: 12,
+  },
+  modalLoadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  modalLoadingText: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 6,
+  },
+  modalList: {
+    maxHeight: 320,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalOptionActive: {
+    backgroundColor: 'rgba(0, 122, 255, 0.08)',
+  },
+  modalOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  modalOptionSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  modalOptionCheck: {
+    fontSize: 18,
+    color: '#007AFF',
+    fontWeight: '700',
+  },
+  modalEmptyState: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  modalEmptyText: {
+    fontSize: 14,
+    color: '#64748b',
   },
   modalContainer: {
     flex: 1,
