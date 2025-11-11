@@ -376,10 +376,10 @@ export default function CarsScreen() {
           {([['all', 'All'], ['available', 'Available'], ['rented', 'Rented'], ['maintenance', 'Maintenance']] as const).map(([f, label]) => (
             <TouchableOpacity 
               key={f} 
-              style={[s.filterBtnCompact, filter === f && s.filterBtnCompactActive]} 
+              style={[s.filterBtnCompact, filter === f && s.filterBtnCompactActive, filter !== f && { backgroundColor: colors.card }]} 
               onPress={() => setFilter(f)}
             >
-              <Text style={[s.filterTextCompact, filter === f && s.filterTextCompactActive]}>
+              <Text style={[s.filterTextCompact, filter === f && s.filterTextCompactActive, filter !== f && { color: colors.textSecondary }]}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -389,33 +389,33 @@ export default function CarsScreen() {
         {/* View & Sort Dropdowns */}
         <View style={s.dropdownsRow}>
           <TouchableOpacity 
-            style={s.dropdownBtnCompact}
+            style={[s.dropdownBtnCompact, { backgroundColor: colors.card }]}
             onPress={() => setShowViewDropdown(true)}
           >
-            <Text style={s.dropdownTextCompact}>{getViewLabel(gridStyle)}</Text>
-            <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
+            <Text style={[s.dropdownTextCompact, { color: colors.text }]}>{getViewLabel(gridStyle)}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={s.dropdownBtnCompact}
+            style={[s.dropdownBtnCompact, { backgroundColor: colors.card }]}
             onPress={() => setShowSortDropdown(true)}
           >
-            <Text style={s.dropdownTextCompact}>{getSortLabel(sortBy)}</Text>
-            <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
+            <Text style={[s.dropdownTextCompact, { color: colors.text }]}>{getSortLabel(sortBy)}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Search Bar - Separate Row */}
       <View style={s.searchRow}>
-        <View style={s.searchBoxCompact}>
-          <Ionicons name="search" size={16} color={Colors.textSecondary} />
+        <View style={[s.searchBoxCompact, { backgroundColor: colors.card }]}>
+          <Ionicons name="search" size={16} color={colors.textSecondary} />
           <TextInput 
-            style={s.searchInputCompact} 
+            style={[s.searchInputCompact, { color: colors.text }]} 
             placeholder="Search..." 
             value={search} 
             onChangeText={setSearch}
-            placeholderTextColor={Colors.textSecondary}
+            placeholderTextColor={colors.textSecondary}
           />
         </View>
       </View>
@@ -508,7 +508,7 @@ export default function CarsScreen() {
         onRequestClose={() => setShowViewDropdown(false)}
       >
         <Pressable style={s.dropdownOverlay} onPress={() => setShowViewDropdown(false)}>
-          <View style={s.dropdownContent}>
+          <View style={[s.dropdownContent, { backgroundColor: colors.card }]}>
             {[
               ['list', 'List', 'list-outline'],
               ['grid3', '3 Columns', 'grid-outline'],
@@ -526,13 +526,13 @@ export default function CarsScreen() {
                 <Ionicons
                   name={icon as any}
                   size={18}
-                  color={gridStyle === style ? Colors.primary : Colors.textSecondary}
+                  color={gridStyle === style ? colors.primary : colors.textSecondary}
                 />
-                <Text style={[s.dropdownOptionText, gridStyle === style && s.dropdownOptionTextActive]}>
+                <Text style={[s.dropdownOptionText, gridStyle === style && s.dropdownOptionTextActive, gridStyle !== style && { color: colors.textSecondary }]}>
                   {label}
                 </Text>
                 {gridStyle === style && (
-                  <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                  <Ionicons name="checkmark" size={18} color={colors.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -687,14 +687,14 @@ export default function CarsScreen() {
             
             return (
               <TouchableOpacity 
-                style={[s.listCard, { width: config.cardWidth }]} 
+                style={[s.listCard, { width: config.cardWidth, backgroundColor: colors.card }]} 
                 onPress={() => router.push(`/car-details?carId=${vehicle.id}`)}
                 activeOpacity={0.7}
               >
                 <View style={s.listRow}>
                   <View style={s.listLeft}>
                     <View style={s.listNameRow}>
-                      <Text style={s.listName} numberOfLines={1}>{vehicle.make} {vehicle.model}</Text>
+                      <Text style={[s.listName, { color: colors.text }]} numberOfLines={1}>{vehicle.make} {vehicle.model}</Text>
                       {vehicle.hasGps && (
                         <Ionicons name="location" size={14} color="#22D3EE" style={s.gpsIcon} />
                       )}
@@ -702,9 +702,9 @@ export default function CarsScreen() {
                         <Ionicons name="warning" size={16} color="#FF9500" style={s.warningIcon} />
                       )}
                     </View>
-                    <Text style={s.listDetail}>{vehicle.licensePlate} • {vehicle.year}</Text>
-                    {vehicle.color && <Text style={s.listDetail}>Χρώμα: {vehicle.color}</Text>}
-                    {vehicle.category && <Text style={s.listDetail}>Κατηγορία: {vehicle.category}</Text>}
+                    <Text style={[s.listDetail, { color: colors.textSecondary }]}>{vehicle.licensePlate} • {vehicle.year}</Text>
+                    {vehicle.color && <Text style={[s.listDetail, { color: colors.textSecondary }]}>Χρώμα: {vehicle.color}</Text>}
+                    {vehicle.category && <Text style={[s.listDetail, { color: colors.textSecondary }]}>Κατηγορία: {vehicle.category}</Text>}
                     {hasUrgentMaintenance && (
                       <View style={s.maintenanceIndicators}>
                         {(kteoUrgency.level === 'expired' || kteoUrgency.level === 'critical' || kteoUrgency.level === 'warning') && (
@@ -757,7 +757,7 @@ export default function CarsScreen() {
           
           return (
             <TouchableOpacity 
-              style={[s.gridCard, { width: config.cardWidth }]} 
+              style={[s.gridCard, { width: config.cardWidth, backgroundColor: colors.card }]} 
               onPress={() => router.push(`/car-details?carId=${vehicle.id}`)}
               activeOpacity={0.7}
             >
@@ -780,10 +780,10 @@ export default function CarsScreen() {
                   </TouchableOpacity>
                 </View>
                 <View style={s.gridCardBody}>
-                  <Text style={s.makeModel} numberOfLines={2}>
+                  <Text style={[s.makeModel, { color: colors.text }]} numberOfLines={2}>
                     {vehicle.make} {vehicle.model}
                   </Text>
-                  <Text style={s.plateNumber} numberOfLines={1}>
+                  <Text style={[s.plateNumber, { color: colors.textSecondary }]} numberOfLines={1}>
                     {vehicle.licensePlate}
                   </Text>
                 </View>
@@ -793,8 +793,8 @@ export default function CarsScreen() {
         }}
         ListEmptyComponent={() => (
           <View style={s.empty}>
-            <Ionicons name="car-outline" size={48} color={Colors.textSecondary} />
-            <Text style={s.emptyText}>Δεν βρέθηκαν αυτοκίνητα</Text>
+            <Ionicons name="car-outline" size={48} color={colors.textSecondary} />
+            <Text style={[s.emptyText, { color: colors.textSecondary }]}>Δεν βρέθηκαν αυτοκίνητα</Text>
           </View>
         )}
       />
