@@ -177,7 +177,7 @@ export default function CalendarScreen() {
     return (
       <TouchableOpacity
         key={event.id}
-        style={[styles.agendaCard, compact && styles.agendaCardCompact]}
+        style={[styles.agendaCard, compact && styles.agendaCardCompact, { backgroundColor: colors.card }]}
         activeOpacity={0.8}
         onPress={() => {
           if (event.contractId) {
@@ -189,21 +189,21 @@ export default function CalendarScreen() {
           <Ionicons name={meta.icon as any} size={22} color={meta.color} />
           </View>
         <View style={styles.agendaContent}>
-          <Text style={[styles.agendaTitle, compact && styles.agendaTitleCompact]} numberOfLines={1}>
+          <Text style={[styles.agendaTitle, compact && styles.agendaTitleCompact, { color: colors.text }]} numberOfLines={1}>
             {meta.label}
           </Text>
-          <Text style={styles.agendaSubtitle} numberOfLines={1}>
+          <Text style={[styles.agendaSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
             {titleText}
             {subtitleText ? ` • ${subtitleText}` : ''}
           </Text>
           {!compact && (
-            <Text style={styles.agendaLocation} numberOfLines={1}>
+            <Text style={[styles.agendaLocation, { color: colors.textSecondary }]} numberOfLines={1}>
               {locationText}
             </Text>
           )}
         </View>
         <View style={styles.agendaRight}>
-          <Text style={styles.agendaDate}>{dateText}</Text>
+          <Text style={[styles.agendaDate, { color: colors.textSecondary }]}>{dateText}</Text>
           <View style={styles.agendaTimePill}>
             <Ionicons name="time-outline" size={14} color={meta.color} />
             <Text style={[styles.agendaTimeText, { color: meta.color }]}>{timeText}</Text>
@@ -216,9 +216,9 @@ export default function CalendarScreen() {
   function renderEmptyState(message?: string) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="calendar-outline" size={64} color={Colors.textSecondary} />
-        <Text style={styles.emptyTitle}>Δεν υπάρχουν γεγονότα</Text>
-        <Text style={styles.emptySubtitle}>
+        <Ionicons name="calendar-outline" size={64} color={colors.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>Δεν υπάρχουν γεγονότα</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
           {message || 'Δημιουργήστε συμβόλαια για να εμφανιστούν στο ημερολόγιο'}
         </Text>
       </View>
