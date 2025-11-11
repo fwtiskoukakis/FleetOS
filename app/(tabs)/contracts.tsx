@@ -160,7 +160,7 @@ export default function ContractsScreen() {
       />
 
       {/* Search & Filters */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { backgroundColor: colors.background }]}>
         <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
           <Ionicons name="search" size={16} color={colors.textSecondary} />
           <TextInput

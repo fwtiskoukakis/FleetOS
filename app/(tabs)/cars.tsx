@@ -365,7 +365,7 @@ export default function CarsScreen() {
       />
 
       {/* Single Row Header */}
-      <View style={s.compactHeader}>
+      <View style={[s.compactHeader, { backgroundColor: colors.background }]}>
         {/* Status Filter */}
         <ScrollView 
           horizontal 
