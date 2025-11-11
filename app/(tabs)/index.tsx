@@ -486,7 +486,7 @@ export default function HomeScreen() {
   function renderStatsCard(icon: any, label: string, value: string | number, color: string, onPress?: () => void) {
     return (
       <TouchableOpacity
-        style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 4 }]}
+        style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 4, backgroundColor: colors.card }]}
         onPress={onPress}
         activeOpacity={onPress ? 0.7 : 1}
         disabled={!onPress}
@@ -506,7 +506,7 @@ export default function HomeScreen() {
     const isActive = activeFilter === filter;
     return (
       <TouchableOpacity
-        style={[styles.filterButton, isActive && styles.filterButtonActive]}
+        style={[styles.filterButton, isActive && styles.filterButtonActive, !isActive && { backgroundColor: colors.card }]}
         onPress={() => setActiveFilter(filter)}
         activeOpacity={0.7}
       >
@@ -528,7 +528,7 @@ export default function HomeScreen() {
     return (
       <TouchableOpacity
         key={contract.id}
-        style={styles.contractCard}
+        style={[styles.contractCard, { backgroundColor: colors.card }]}
         onPress={() => router.push(`/contract-details?contractId=${contract.id}`)}
         activeOpacity={0.7}
       >
@@ -641,7 +641,7 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-        <View style={styles.urgentCard}>
+        <View style={[styles.urgentCard, { backgroundColor: colors.card }]}>
           {maintenanceAlerts.slice(0, 3).map((alert, index) => (
             <TouchableOpacity
               key={alert.vehicleId + alert.alertType}
@@ -704,7 +704,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.activityCard}>
+        <View style={[styles.activityCard, { backgroundColor: colors.card }]}>
           {activities.length === 0 ? (
             <View style={styles.noActivityContainer}>
               <Ionicons name="calendar-outline" size={32} color={colors.textSecondary} />
@@ -830,7 +830,7 @@ export default function HomeScreen() {
 
             {/* Revenue Stats - Compact Single Card */}
             <View style={styles.revenueSection}>
-              <View style={styles.revenueCard}>
+              <View style={[styles.revenueCard, { backgroundColor: colors.card }]}>
                 <View style={styles.revenueRow}>
                   <View style={styles.revenueItem}>
                     <Ionicons name="trending-up" size={18} color={Colors.success} />
@@ -866,7 +866,7 @@ export default function HomeScreen() {
 
         {/* Search Bar */}
         <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
+          <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
             <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
