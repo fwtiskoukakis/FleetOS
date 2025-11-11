@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../utils/design-system';
+import { useThemeColors } from '../contexts/theme-context';
 
 interface BreadcrumbItem {
   label: string;
@@ -21,6 +22,7 @@ interface BreadcrumbProps {
  */
 export function Breadcrumb({ items, showHomeIcon = true }: BreadcrumbProps) {
   const router = useRouter();
+  const colors = useThemeColors();
 
   function handlePress(path?: string) {
     if (path) {
@@ -29,7 +31,7 @@ export function Breadcrumb({ items, showHomeIcon = true }: BreadcrumbProps) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
       <View style={styles.breadcrumbTrail}>
         {items.map((item, index) => (
           <React.Fragment key={index}>
@@ -39,7 +41,7 @@ export function Breadcrumb({ items, showHomeIcon = true }: BreadcrumbProps) {
                 <Ionicons 
                   name="chevron-forward" 
                   size={14} 
-                  color={Colors.textTertiary} 
+                  color={colors.textSecondary} 
                 />
               </View>
             )}
@@ -55,11 +57,11 @@ export function Breadcrumb({ items, showHomeIcon = true }: BreadcrumbProps) {
                   <Ionicons 
                     name={item.icon} 
                     size={14} 
-                    color={Colors.primary} 
+                    color={colors.primary} 
                     style={styles.icon}
                   />
                 )}
-                <Text style={styles.linkText}>{item.label}</Text>
+                <Text style={[styles.linkText, { color: colors.primary }]}>{item.label}</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.currentItem}>
@@ -67,11 +69,11 @@ export function Breadcrumb({ items, showHomeIcon = true }: BreadcrumbProps) {
                   <Ionicons 
                     name={item.icon} 
                     size={14} 
-                    color={Colors.text} 
+                    color={colors.text} 
                     style={styles.icon}
                   />
                 )}
-                <Text style={styles.currentText}>{item.label}</Text>
+                <Text style={[styles.currentText, { color: colors.text }]}>{item.label}</Text>
               </View>
             )}
           </React.Fragment>
