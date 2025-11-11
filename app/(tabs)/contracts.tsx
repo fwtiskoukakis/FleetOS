@@ -161,11 +161,12 @@ export default function ContractsScreen() {
 
       {/* Search & Filters */}
       <View style={styles.topBar}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={16} color={Colors.textSecondary} />
+        <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
+          <Ionicons name="search" size={16} color={colors.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Αναζήτηση..."
+            placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -174,10 +175,10 @@ export default function ContractsScreen() {
           {(['all', 'active', 'upcoming', 'completed'] as const).map(f => (
             <TouchableOpacity
               key={f}
-              style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+              style={[styles.filterBtn, filter === f && styles.filterBtnActive, filter !== f && { backgroundColor: colors.card }]}
               onPress={() => setFilter(f)}
             >
-              <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+              <Text style={[styles.filterText, filter === f && styles.filterTextActive, filter !== f && { color: colors.textSecondary }]}>
                 {f === 'all' ? 'Ολα' : getStatusLabel(f)} ({contracts.filter(c => f === 'all' || c.status === f).length})
               </Text>
             </TouchableOpacity>
@@ -197,13 +198,13 @@ export default function ContractsScreen() {
           return (
             <TouchableOpacity
               key={c.id}
-              style={styles.card}
+              style={[styles.card, { backgroundColor: colors.card }]}
               onPress={() => router.push(`/contract-details?contractId=${c.id}`)}
             >
               <View style={styles.row}>
                 <View style={styles.left}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.name} numberOfLines={1}>{c.renterInfo.fullName}</Text>
+                    <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{c.renterInfo.fullName}</Text>
                     <TouchableOpacity
                       style={styles.phoneButton}
                       onPress={(e) => {
@@ -211,13 +212,13 @@ export default function ContractsScreen() {
                         handlePhoneCall(c.renterInfo.phoneNumber || c.renterInfo.phone);
                       }}
                     >
-                      <Ionicons name="call" size={16} color={Colors.primary} />
+                      <Ionicons name="call" size={16} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.detail} numberOfLines={1}>
+                  <Text style={[styles.detail, { color: colors.textSecondary }]} numberOfLines={1}>
                     {c.carInfo.makeModel} • {c.carInfo.licensePlate}
                   </Text>
-                  <Text style={styles.date}>
+                  <Text style={[styles.date, { color: colors.textSecondary }]}>
                     {new Date(c.rentalPeriod.pickupDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {c.rentalPeriod.pickupTime} - {new Date(c.rentalPeriod.dropoffDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {c.rentalPeriod.dropoffTime}
                   </Text>
                 </View>
@@ -227,13 +228,13 @@ export default function ContractsScreen() {
                       {getStatusLabel(actualStatus)}
                     </Text>
                   </View>
-                  <Text style={styles.price}>€{c.rentalPeriod.totalCost}</Text>
+                  <Text style={[styles.price, { color: colors.text }]}>€{c.rentalPeriod.totalCost}</Text>
                   
                   {/* AADE Status Badge */}
                   {(c.aadeStatus === 'submitted' || c.aadeStatus === 'completed') && (
                     <View style={styles.aadeBadge}>
                       <Ionicons name="cloud-done" size={12} color="#28a745" />
-                      <Text style={styles.aadeBadgeText}>ΑΑΔΕ</Text>
+                      <Text style={[styles.aadeBadgeText, { color: colors.textSecondary }]}>ΑΑΔΕ</Text>
                     </View>
                   )}
                 </View>
