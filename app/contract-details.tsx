@@ -20,9 +20,11 @@ import { createContractWithAADE, canSubmitToAADE, getAADEStatusMessage } from '.
 import { AuthService } from '../services/auth.service';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import { useThemeColors } from '../contexts/theme-context';
 
 export default function ContractDetailsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { contractId } = useLocalSearchParams();
   const [contract, setContract] = React.useState<Contract | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
@@ -418,7 +420,7 @@ export default function ContractDetailsScreen() {
 
   if (!contract) {
     return (
-      <SafeAreaView style={s.container} edges={['top']}>
+      <SafeAreaView style={[s.container, { backgroundColor: colors.background }]} edges={['top']}>
         <AppHeader title="Λεπτομέρειες" showBack={true} showActions={true} />
         <View style={s.loading}>
           <Text style={s.loadingText}>Φόρτωση...</Text>
@@ -437,7 +439,7 @@ export default function ContractDetailsScreen() {
   );
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <SafeAreaView style={[s.container, { backgroundColor: colors.background }]} edges={['top']}>
       <AppHeader title="Λεπτομέρειες Συμβολαίου" showBack={true} showActions={true} />
 
       <Breadcrumb 

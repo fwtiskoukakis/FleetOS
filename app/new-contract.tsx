@@ -29,6 +29,7 @@ import { Car } from '../models/car.interface';
 import Svg, { Path } from 'react-native-svg';
 import { format } from 'date-fns/format';
 import * as ImagePicker from 'expo-image-picker';
+import { useThemeColors } from '../contexts/theme-context';
 
 type CarView = 'front' | 'rear' | 'left' | 'right';
 
@@ -40,6 +41,7 @@ type LocationOption = typeof LOCATION_OPTIONS[number];
  */
 export default function NewContractScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
   const [availableCars, setAvailableCars] = useState<Car[]>([]);
@@ -701,7 +703,7 @@ export default function NewContractScreen() {
         </View>
       </Modal>
 
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerContainer}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>

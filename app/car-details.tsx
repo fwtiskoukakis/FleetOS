@@ -10,6 +10,7 @@ import { SimpleGlassCard } from '../components/glass-card';
 import { Colors, Typography, Shadows, Glass } from '../utils/design-system';
 import { smoothScrollConfig } from '../utils/animations';
 import { supabase } from '../utils/supabase';
+import { useThemeColors } from '../contexts/theme-context';
 
 interface Car {
   id: string;
@@ -40,6 +41,7 @@ interface DamagePoint {
 
 export default function CarDetailsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { carId } = useLocalSearchParams();
   const [car, setCar] = useState<Car | null>(null);
   const [stats, setStats] = useState<CarStats>({ totalContracts: 0, totalRevenue: 0, totalDamages: 0 });
@@ -163,7 +165,7 @@ export default function CarDetailsScreen() {
 
   if (!car) {
     return (
-      <SafeAreaView style={s.container} edges={['top']}>
+      <SafeAreaView style={[s.container, { backgroundColor: colors.background }]} edges={['top']}>
         <AppHeader title="Λεπτομέρειες" showBack={true} showActions={true} />
         <View style={s.loading}>
           <Text style={s.loadingText}>Φόρτωση...</Text>
@@ -210,7 +212,7 @@ export default function CarDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <SafeAreaView style={[s.container, { backgroundColor: colors.background }]} edges={['top']}>
       <AppHeader title="Λεπτομέρειες Αυτοκινήτου" showBack={true} showActions={true} />
 
       <Breadcrumb 
