@@ -22,6 +22,7 @@ import { SimpleGlassCard } from '../../components/glass-card';
 import { Colors, Typography, Shadows, Glass } from '../../utils/design-system';
 import { smoothScrollConfig } from '../../utils/animations';
 import { VehicleService } from '../../services/vehicle.service';
+import { useThemeColors } from '../../contexts/theme-context';
 import { Vehicle, VehicleStatus } from '../../models/vehicle.interface';
 import { calculateExpiryUrgency, calculateServiceUrgency } from '../../utils/maintenance-urgency';
 import { supabase } from '../../utils/supabase';
@@ -56,6 +57,7 @@ const getGridConfig = (style: GridStyle) => {
 
 export default function CarsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filtered, setFiltered] = useState<Vehicle[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -354,7 +356,7 @@ export default function CarsScreen() {
   }
 
   return (
-    <View style={s.container}>
+    <View style={[s.container, { backgroundColor: colors.background }]}>
       <Breadcrumb 
         items={[
           { label: 'Αρχική', path: '/', icon: 'home' },

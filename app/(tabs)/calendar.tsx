@@ -23,6 +23,7 @@ import { Colors, Typography, Spacing, Shadows, BorderRadius, Glass } from '../..
 import { smoothScrollConfig } from '../../utils/animations';
 import { addDays, subDays, startOfDay, format, isSameDay, startOfMonth, endOfMonth, getDay, isBefore, addMonths } from 'date-fns';
 import { el } from 'date-fns/locale';
+import { useThemeColors } from '../../contexts/theme-context';
 
 interface CalendarEvent {
   id: string;
@@ -43,6 +44,7 @@ const DAY_LABELS = ['ΔΕ', 'ΤΡ', 'ΤΕ', 'ΠΕ', 'ΠΑ', 'ΣΑ', 'ΚΥ'];
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -362,7 +364,7 @@ export default function CalendarScreen() {
   }, [eventsByDate, today]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Breadcrumb 
         items={[
           { label: 'Αρχική', path: '/', icon: 'home' },
