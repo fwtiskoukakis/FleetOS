@@ -35,33 +35,41 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const loadThemePreference = async () => {
     try {
-      // Force light theme - ignore any saved preferences
-      setThemeState('light');
+      const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        setThemeState(savedTheme);
+      } else {
+        // Default to system preference
+        setThemeState(systemColorScheme === 'dark' ? 'dark' : 'light');
+      }
     } catch (error) {
       console.error('Error loading theme preference:', error);
+      setThemeState('light');
     } finally {
       setIsLoaded(true);
     }
   };
 
   const saveThemePreference = async (newTheme: FleetOSColorScheme) => {
-    // Disabled - always use light theme
-    return;
+    try {
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+    } catch (error) {
+      console.error('Error saving theme preference:', error);
+    }
   };
 
   const setTheme = (newTheme: FleetOSColorScheme) => {
-    // Disabled - always use light theme
-    setThemeState('light');
+    setThemeState(newTheme);
+    saveThemePreference(newTheme);
   };
 
   const toggleTheme = () => {
-    // Disabled - always use light theme
-    return;
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
   };
 
-  // Force light theme - ignore system preferences
-  const actualTheme = 'light';
-  const isDark = false;
+  const actualTheme = theme;
+  const isDark = theme === 'dark';
   
   // Get theme values
   const themeValues = getFleetOSTheme(actualTheme);

@@ -46,6 +46,18 @@ export const FleetOSColors = {
     primary: ['#06B6D4', '#22D3EE'],
     background: ['#0f172a', '#1e293b'],
     light: ['#ffffff', '#f8fafc'],
+    // Header gradients for dark mode
+    headerDark: [
+      ['rgba(15,23,42,0.92)', 'rgba(14,165,233,0.24)'],
+      ['rgba(12,74,110,0.9)', 'rgba(45,212,191,0.24)'],
+      ['rgba(49,46,129,0.9)', 'rgba(192,132,252,0.25)'],
+    ],
+    // Header gradients for light mode (Sky Blues)
+    headerLight: [
+      ['rgba(240,249,255,0.95)', 'rgba(186,230,253,0.4)'],
+      ['rgba(224,242,254,0.95)', 'rgba(147,197,253,0.4)'],
+      ['rgba(239,246,255,0.95)', 'rgba(191,219,254,0.4)'],
+    ],
   },
 } as const;
 
@@ -145,6 +157,8 @@ export const getFleetOSTheme = (scheme: FleetOSColorScheme = 'automatic') => {
       surfaceElevated: isDark ? 'rgba(17, 17, 17, 0.95)' : 'rgba(255, 255, 255, 0.95)',
       glass: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.7)',
       glassBorder: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.8)',
+      headerGradients: isDark ? FleetOSColors.gradients.headerDark : FleetOSColors.gradients.headerLight,
+      statusBarBackground: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(240,249,255,0.95)',
       ...FleetOSColors.status,
     },
     typography: FleetOSTypography,

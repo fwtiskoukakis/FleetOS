@@ -28,6 +28,7 @@ import { Vehicle } from '../../models/vehicle.interface';
 import { calculateExpiryUrgency, calculateServiceUrgency } from '../../utils/maintenance-urgency';
 import { startOfWeek, endOfWeek, startOfDay, endOfDay, format, isSameDay, addDays, parseISO } from 'date-fns';
 import { el } from 'date-fns/locale';
+import { useThemeColors } from '../../contexts/theme-context';
 
 const { width } = Dimensions.get('window');
 
@@ -75,6 +76,7 @@ type ActivityView = 'today' | 'week';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -801,7 +803,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

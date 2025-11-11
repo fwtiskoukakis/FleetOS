@@ -87,12 +87,8 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
   ];
 
   const gradientSets = useMemo(
-    () => [
-      ['rgba(15,23,42,0.92)', 'rgba(14,165,233,0.24)'],
-      ['rgba(12,74,110,0.9)', 'rgba(45,212,191,0.24)'],
-      ['rgba(49,46,129,0.9)', 'rgba(192,132,252,0.25)'],
-    ],
-    []
+    () => colors.headerGradients,
+    [colors.headerGradients]
   );
   const [currentGradient, setCurrentGradient] = useState(0);
   const [nextGradient, setNextGradient] = useState(1 % gradientSets.length);
@@ -120,7 +116,7 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
 
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor="rgba(15,23,42,0.95)" />
+      <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.statusBarBackground} />
       <View style={styles.wrapper}>
         <View style={styles.gradientWrapper}>
         <LinearGradient
@@ -138,7 +134,7 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
           />
         </Animated.View>
       </View>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.isDark ? 'rgba(8, 47, 73, 0.25)' : 'rgba(255, 255, 255, 0.25)' }]}>
         <View style={styles.content}>
           {/* Left */}
           {showBack ? (
@@ -248,7 +244,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     paddingHorizontal: 18,
-    backgroundColor: 'rgba(8, 47, 73, 0.25)',
   },
   content: {
     flexDirection: 'row',

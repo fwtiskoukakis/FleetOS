@@ -67,8 +67,18 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
 
   return (
     <View style={styles.container}>
-      <BlurView intensity={65} tint="light" style={styles.blurContainer}>
-        <View style={styles.glassEdge} />
+      <BlurView 
+        intensity={65} 
+        tint={colors.isDark ? "dark" : "light"} 
+        style={[
+          styles.blurContainer, 
+          { 
+            backgroundColor: colors.isDark ? 'rgba(17, 17, 17, 0.8)' : 'rgba(255, 255, 255, 0.18)',
+            borderColor: colors.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.35)',
+          }
+        ]}
+      >
+        <View style={[styles.glassEdge, { backgroundColor: colors.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.55)' }]} />
         <View style={styles.tabBar}>
           {tabs.map((tab) => {
             const active = isActive(tab.route);
@@ -79,7 +89,7 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
                 onPress={() => handleTabPress(tab)}
                 activeOpacity={0.65}
               >
-                {active && <View style={styles.activeBackground} />}
+                {active && <View style={[styles.activeBackground, { backgroundColor: colors.isDark ? 'rgba(14, 165, 233, 0.25)' : 'rgba(14, 165, 233, 0.18)' }]} />}
                 <View style={styles.tabContent}>
                   <Ionicons 
                     name={tab.icon} 
@@ -117,9 +127,7 @@ const styles = StyleSheet.create({
   blurContainer: {
     borderRadius: 36,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
@@ -132,7 +140,6 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     opacity: 0.9,
   },
   tabBar: {
@@ -158,7 +165,6 @@ const styles = StyleSheet.create({
     right: 6,
     bottom: 6,
     borderRadius: 22,
-    backgroundColor: 'rgba(14, 165, 233, 0.18)',
   },
   tabContent: {
     alignItems: 'center',

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthService } from '../services/auth.service';
 import { supabase } from '../utils/supabase';
 import { Colors, Typography, Spacing, Shadows } from '../utils/design-system';
+import { useTheme, useThemeColors } from '../contexts/theme-context';
 
 interface UserProfile {
   id: string;
@@ -39,6 +40,8 @@ interface UserProfile {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { isDark, toggleTheme } = useTheme();
+  const colors = useThemeColors();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -187,10 +190,10 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Φόρτωση προφίλ...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Φόρτωση προφίλ...</Text>
         </View>
       </SafeAreaView>
     );
@@ -198,10 +201,10 @@ export default function ProfileScreen() {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={64} color={Colors.error} />
-          <Text style={styles.errorText}>Αποτυχία φόρτωσης προφίλ</Text>
+          <Text style={[styles.errorText, { color: colors.text }]}>Αποτυχία φόρτωσης προφίλ</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
             <Text style={styles.retryButtonText}>Δοκιμάστε Ξανά</Text>
           </TouchableOpacity>
@@ -211,13 +214,13 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Προφίλ</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Προφίλ</Text>
         <View style={styles.headerActions}>
           {editMode ? (
             <>
@@ -311,6 +314,31 @@ export default function ProfileScreen() {
                 editable={editMode}
                 placeholderTextColor={Colors.textSecondary}
               />
+            </View>
+          </View>
+        </View>
+
+        {/* Appearance Settings */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="color-palette-outline" size={24} color={Colors.primary} />
+            <Text style={styles.sectionTitle}>Εμφάνιση</Text>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <View style={styles.switchRow}>
+                <View style={styles.switchLabel}>
+                  <Text style={styles.fieldLabel}>Σκούρο Θέμα</Text>
+                  <Text style={styles.fieldHint}>Χρησιμοποιήστε σκούρα χρώματα</Text>
+                </View>
+                <Switch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: Colors.systemGray4, true: Colors.primary + '80' }}
+                  thumbColor={isDark ? Colors.primary : Colors.systemGray}
+                />
+              </View>
             </View>
           </View>
         </View>
