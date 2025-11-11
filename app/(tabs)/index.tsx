@@ -495,8 +495,8 @@ export default function HomeScreen() {
           <Ionicons name={icon} size={24} color={color} />
         </View>
         <View style={styles.statContent}>
-          <Text style={styles.statValue}>{value}</Text>
-          <Text style={styles.statLabel}>{label}</Text>
+          <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -513,9 +513,9 @@ export default function HomeScreen() {
         <Ionicons
           name={icon}
           size={18}
-          color={isActive ? '#FFFFFF' : Colors.textSecondary}
+          color={isActive ? '#FFFFFF' : colors.textSecondary}
         />
-        <Text style={[styles.filterButtonText, isActive && styles.filterButtonTextActive]}>
+        <Text style={[styles.filterButtonText, isActive && styles.filterButtonTextActive, !isActive && { color: colors.textSecondary }]}>
           {label}
         </Text>
       </TouchableOpacity>
@@ -538,17 +538,17 @@ export default function HomeScreen() {
             <View style={[styles.statusDot, { backgroundColor: getStatusColor(actualStatus) }]} />
             <View style={styles.contractHeaderInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.contractName} numberOfLines={1}>
+                <Text style={[styles.contractName, { color: colors.text }]} numberOfLines={1}>
                   {contract.renterInfo.fullName}
                 </Text>
                 <TouchableOpacity
                   style={styles.phoneButton}
                   onPress={(e) => handlePhoneCall(contract.renterInfo.phoneNumber || contract.renterInfo.phone, e)}
                 >
-                  <Ionicons name="call" size={14} color={Colors.primary} />
+                  <Ionicons name="call" size={14} color={colors.primary} />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.contractCar} numberOfLines={1}>
+              <Text style={[styles.contractCar, { color: colors.textSecondary }]} numberOfLines={1}>
                 {contract.carInfo.makeModel} • {contract.carInfo.licensePlate}
               </Text>
             </View>
@@ -563,23 +563,23 @@ export default function HomeScreen() {
         {/* Details */}
         <View style={styles.contractDetails}>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
-            <Text style={styles.detailLabel}>Παραλαβή:</Text>
-            <Text style={styles.detailValue}>
+            <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Παραλαβή:</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>
               {new Date(contract.rentalPeriod.pickupDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.pickupTime}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
-            <Text style={styles.detailLabel}>Επιστροφή:</Text>
-            <Text style={styles.detailValue}>
+            <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Επιστροφή:</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>
               {new Date(contract.rentalPeriod.dropoffDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.dropoffTime}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
-            <Text style={styles.detailLabel}>Τοποθεσία:</Text>
-            <Text style={styles.detailValue} numberOfLines={1}>
+            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Τοποθεσία:</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={1}>
               {contract.rentalPeriod.pickupLocation}
             </Text>
           </View>
@@ -588,23 +588,23 @@ export default function HomeScreen() {
         {/* Footer */}
         <View style={styles.contractFooter}>
           <View style={styles.priceContainer}>
-            <Ionicons name="cash-outline" size={16} color={Colors.primary} />
-            <Text style={styles.priceValue}>€{contract.rentalPeriod.totalCost || 0}</Text>
+            <Ionicons name="cash-outline" size={16} color={colors.primary} />
+            <Text style={[styles.priceValue, { color: colors.text }]}>€{contract.rentalPeriod.totalCost || 0}</Text>
           </View>
           <View style={styles.footerIcons}>
             {contract.damagePoints && contract.damagePoints.length > 0 && (
               <View style={styles.footerIconBadge}>
                 <Ionicons name="warning" size={14} color={Colors.warning} />
-                <Text style={styles.footerIconBadgeText}>{contract.damagePoints.length}</Text>
+                <Text style={[styles.footerIconBadgeText, { color: colors.textSecondary }]}>{contract.damagePoints.length}</Text>
               </View>
             )}
             {(contract.aadeStatus === 'submitted' || contract.aadeStatus === 'completed') && (
               <View style={styles.aadeBadgeHome}>
                 <Ionicons name="cloud-done" size={12} color="#28a745" />
-                <Text style={styles.aadeBadgeTextHome}>ΑΑΔΕ</Text>
+                <Text style={[styles.aadeBadgeTextHome, { color: colors.textSecondary }]}>ΑΑΔΕ</Text>
               </View>
             )}
-            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </View>
         </View>
       </TouchableOpacity>
@@ -614,9 +614,9 @@ export default function HomeScreen() {
   function renderFleetAvailabilitySection() {
     return (
       <View style={styles.statsSection}>
-        <Text style={styles.sectionTitle}>Διαθεσιμότητα Στόλου</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Διαθεσιμότητα Στόλου</Text>
         <View style={styles.statsGrid}>
-          {renderStatsCard('car-outline', 'Σύνολο', fleetAvailability.totalVehicles, Colors.text, () => router.push('/(tabs)/cars'))}
+          {renderStatsCard('car-outline', 'Σύνολο', fleetAvailability.totalVehicles, colors.text, () => router.push('/(tabs)/cars'))}
           {renderStatsCard('checkmark-circle', 'Διαθέσιμα', fleetAvailability.availableVehicles, Colors.success)}
           {renderStatsCard('time-outline', 'Ενοικιαζόμενα', fleetAvailability.rentedVehicles, Colors.info)}
           {renderStatsCard('warning', 'Κατάσταση', fleetAvailability.maintenanceVehicles, '#FF9500')}
@@ -633,7 +633,7 @@ export default function HomeScreen() {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderLeft}>
             <Ionicons name="warning" size={16} color={Colors.error} />
-            <Text style={styles.sectionTitle}>Επείγοντες Ενημερώσεις</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Επείγοντες Ενημερώσεις</Text>
           </View>
           {fleetAvailability.urgentMaintenanceCount > 0 && (
             <View style={styles.urgentBadge}>
@@ -651,10 +651,10 @@ export default function HomeScreen() {
             >
               <View style={[styles.urgentDot, { backgroundColor: alert.urgency.color }]} />
               <View style={styles.urgentContent}>
-                <Text style={styles.urgentVehicle} numberOfLines={1}>
+                <Text style={[styles.urgentVehicle, { color: colors.text }]} numberOfLines={1}>
                   {getAlertTypeLabel(alert.alertType)}
                 </Text>
-                <Text style={styles.urgentPlate} numberOfLines={1}>
+                <Text style={[styles.urgentPlate, { color: colors.textSecondary }]} numberOfLines={1}>
                   {alert.vehicleName}
                 </Text>
               </View>
@@ -669,8 +669,8 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/maintenance')}
               activeOpacity={0.7}
             >
-              <Text style={styles.viewAllText}>Προβολή Όλων ({maintenanceAlerts.length})</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>Προβολή Όλων ({maintenanceAlerts.length})</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
@@ -684,7 +684,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.activitySection}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
             {activityView === 'today' ? 'Σήμερα' : 'Εβδομάδα'}
           </Text>
           <View style={styles.activityToggle}>
@@ -693,22 +693,22 @@ export default function HomeScreen() {
               onPress={() => setActivityView('today')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.toggleText, activityView === 'today' && styles.toggleTextActive]}>Σήμερα</Text>
+              <Text style={[styles.toggleText, activityView === 'today' && styles.toggleTextActive, activityView !== 'today' && { color: colors.textSecondary }]}>Σήμερα</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleButton, activityView === 'week' && styles.toggleButtonActive]}
               onPress={() => setActivityView('week')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.toggleText, activityView === 'week' && styles.toggleTextActive]}>Εβδομάδα</Text>
+              <Text style={[styles.toggleText, activityView === 'week' && styles.toggleTextActive, activityView !== 'week' && { color: colors.textSecondary }]}>Εβδομάδα</Text>
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.activityCard}>
           {activities.length === 0 ? (
             <View style={styles.noActivityContainer}>
-              <Ionicons name="calendar-outline" size={32} color={Colors.textSecondary} />
-              <Text style={styles.noActivityText}>
+              <Ionicons name="calendar-outline" size={32} color={colors.textSecondary} />
+              <Text style={[styles.noActivityText, { color: colors.textSecondary }]}>
                 {activityView === 'today' ? 'Δεν υπάρχουν εκκρεμότητες σήμερα' : 'Δεν υπάρχουν εκκρεμότητες αυτή την εβδομάδα'}
               </Text>
             </View>
@@ -729,22 +729,22 @@ export default function HomeScreen() {
                     />
                   </View>
                   <View style={styles.activityContent}>
-                    <Text style={styles.activityTitle} numberOfLines={1}>
+                    <Text style={[styles.activityTitle, { color: colors.text }]} numberOfLines={1}>
                       {activity.type === 'pickup' ? '🟢 Παραλαβή' : '🔴 Επιστροφή'}
                     </Text>
-                    <Text style={styles.activityDetails} numberOfLines={1}>
+                    <Text style={[styles.activityDetails, { color: colors.textSecondary }]} numberOfLines={1}>
                       {activity.customerName} • {activity.vehicleName}
                     </Text>
                   </View>
                   <View style={styles.activityRightInfo}>
-                    <Text style={styles.activityLocationDate} numberOfLines={1}>
+                    <Text style={[styles.activityLocationDate, { color: colors.text }]} numberOfLines={1}>
                       {format(activity.date, 'dd/MM', { locale: el })}
                     </Text>
-                    <Text style={styles.activityLocationText} numberOfLines={1}>
+                    <Text style={[styles.activityLocationText, { color: colors.textSecondary }]} numberOfLines={1}>
                       {activity.location}
                     </Text>
                   </View>
-                  <Text style={styles.activityTime}>
+                  <Text style={[styles.activityTime, { color: colors.textSecondary }]}>
                     {activity.time}
                   </Text>
                 </TouchableOpacity>
@@ -755,8 +755,8 @@ export default function HomeScreen() {
                   onPress={() => router.push('/(tabs)/calendar')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.viewAllText}>Προβολή Full Ημερολογίου</Text>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+                  <Text style={[styles.viewAllText, { color: colors.primary }]}>Προβολή Full Ημερολογίου</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </>
@@ -780,10 +780,10 @@ export default function HomeScreen() {
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIconContainer}>
-          <Ionicons name="document-text-outline" size={64} color={Colors.textSecondary} />
+          <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
         </View>
-        <Text style={styles.emptyTitle}>Δεν υπάρχουν συμβόλαια</Text>
-        <Text style={styles.emptySubtitle}>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>Δεν υπάρχουν συμβόλαια</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
           {activeFilter === 'all'
             ? 'Δημιουργήστε το πρώτο σας συμβόλαιο πατώντας το κουμπί +'
             : `Δεν υπάρχουν ${getStatusLabel(activeFilter).toLowerCase()} συμβόλαια`}
@@ -814,8 +814,8 @@ export default function HomeScreen() {
       >
         {loadingDashboard ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Φόρτωση δεδομένων...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Φόρτωση δεδομένων...</Text>
           </View>
         ) : (
           <>
@@ -835,16 +835,16 @@ export default function HomeScreen() {
                   <View style={styles.revenueItem}>
                     <Ionicons name="trending-up" size={18} color={Colors.success} />
                     <View style={styles.revenueTextContainer}>
-                      <Text style={styles.revenueLabel}>Συνολικά</Text>
-                      <Text style={styles.revenueValue}>€{stats.totalRevenue.toLocaleString()}</Text>
+                      <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>Συνολικά</Text>
+                      <Text style={[styles.revenueValue, { color: colors.text }]}>€{stats.totalRevenue.toLocaleString()}</Text>
                     </View>
                   </View>
                   <View style={styles.revenueDivider} />
                   <View style={styles.revenueItem}>
-                    <Ionicons name="calendar" size={18} color={Colors.primary} />
+                    <Ionicons name="calendar" size={18} color={colors.primary} />
                     <View style={styles.revenueTextContainer}>
-                      <Text style={styles.revenueLabel}>Αυτόν τον Μήνα</Text>
-                      <Text style={styles.revenueValue}>€{stats.revenueThisMonth.toLocaleString()}</Text>
+                      <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>Αυτόν τον Μήνα</Text>
+                      <Text style={[styles.revenueValue, { color: colors.text }]}>€{stats.revenueThisMonth.toLocaleString()}</Text>
                     </View>
                   </View>
                 </View>
@@ -853,12 +853,12 @@ export default function HomeScreen() {
 
             {/* Contract Stats */}
             <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>Συμβόλαια</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Συμβόλαια</Text>
               <View style={styles.statsGrid}>
-                {renderStatsCard('documents', 'Συνολικά', stats.totalContracts, Colors.primary, () => setActiveFilter('all'))}
+                {renderStatsCard('documents', 'Συνολικά', stats.totalContracts, colors.primary, () => setActiveFilter('all'))}
                 {renderStatsCard('checkmark-circle', 'Ενεργά', stats.activeContracts, Colors.success, () => setActiveFilter('active'))}
                 {renderStatsCard('time', 'Επερχόμενα', stats.upcomingContracts, Colors.info, () => setActiveFilter('upcoming'))}
-                {renderStatsCard('checkmark-done', 'Ολοκληρωμένα', stats.completedContracts, Colors.textSecondary, () => setActiveFilter('completed'))}
+                {renderStatsCard('checkmark-done', 'Ολοκληρωμένα', stats.completedContracts, colors.textSecondary, () => setActiveFilter('completed'))}
               </View>
             </View>
           </>
@@ -867,17 +867,17 @@ export default function HomeScreen() {
         {/* Search Bar */}
         <View style={styles.searchSection}>
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+            <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text }]}
               placeholder="Αναζήτηση συμβολαίων..."
-              placeholderTextColor={Colors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={20} color={Colors.textSecondary} />
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -896,7 +896,7 @@ export default function HomeScreen() {
         {/* Contracts List */}
         <View style={styles.contractsSection}>
           <View style={styles.contractsHeader}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Συμβόλαια ({filteredContracts.length})
             </Text>
           </View>
