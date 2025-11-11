@@ -13,18 +13,23 @@ export const FleetOSColors = {
   
   // Background Colors
   background: {
-    dark: '#000000', // Pure black
-    darkSecondary: '#111111', // Very dark gray
+    dark: '#0a0a0a', // Very dark gray (OLED-friendly)
+    darkSecondary: '#121212', // Dark gray
+    darkCard: '#1a1a1a', // Card background dark
+    darkElevated: '#222222', // Elevated surfaces dark
     light: '#ffffff',
     lightSecondary: '#f8fafc', // slate-50
+    lightCard: '#ffffff', // Card background light
   },
   
   // Text Colors
   text: {
-    primary: '#0B132B', // Dark navy
-    secondary: '#64748b', // slate-500
-    light: '#ffffff',
+    primary: '#0B132B', // Dark navy (for light mode)
+    secondary: '#64748b', // slate-500 (for light mode)
+    light: '#ffffff', // White (for dark mode)
+    lightSecondary: '#b0b0b0', // Light gray (for dark mode secondary)
     muted: '#94a3b8', // slate-400
+    darkMuted: '#6b6b6b', // Dark mode muted
   },
   
   // Accent Colors
@@ -148,15 +153,19 @@ export const getFleetOSTheme = (scheme: FleetOSColorScheme = 'automatic') => {
       primaryDark: FleetOSColors.primary.cyanDark,
       background: isDark ? FleetOSColors.background.dark : FleetOSColors.background.light,
       backgroundSecondary: isDark ? FleetOSColors.background.darkSecondary : FleetOSColors.background.lightSecondary,
+      card: isDark ? FleetOSColors.background.darkCard : FleetOSColors.background.lightCard,
+      cardElevated: isDark ? FleetOSColors.background.darkElevated : FleetOSColors.background.light,
       text: isDark ? FleetOSColors.text.light : FleetOSColors.text.primary,
-      textSecondary: isDark ? '#ffffff' : FleetOSColors.text.secondary,
-      textMuted: isDark ? '#cccccc' : FleetOSColors.text.muted,
+      textSecondary: isDark ? FleetOSColors.text.lightSecondary : FleetOSColors.text.secondary,
+      textMuted: isDark ? FleetOSColors.text.darkMuted : FleetOSColors.text.muted,
+      textInverse: isDark ? FleetOSColors.text.primary : FleetOSColors.text.light,
       accent: FleetOSColors.accent.cyan,
-      border: isDark ? '#333333' : '#e5e7eb',
-      surface: isDark ? '#111111' : '#ffffff',
-      surfaceElevated: isDark ? 'rgba(17, 17, 17, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-      glass: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.7)',
-      glassBorder: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.8)',
+      border: isDark ? '#2a2a2a' : '#e5e7eb',
+      borderLight: isDark ? '#1f1f1f' : '#f0f0f0',
+      surface: isDark ? FleetOSColors.background.darkCard : '#ffffff',
+      surfaceElevated: isDark ? FleetOSColors.background.darkElevated : 'rgba(255, 255, 255, 0.95)',
+      glass: isDark ? 'rgba(26, 26, 26, 0.85)' : 'rgba(255, 255, 255, 0.7)',
+      glassBorder: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
       headerGradients: isDark ? FleetOSColors.gradients.headerDark : FleetOSColors.gradients.headerLight,
       statusBarBackground: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(240,249,255,0.95)',
       ...FleetOSColors.status,

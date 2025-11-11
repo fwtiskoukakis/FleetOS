@@ -19,9 +19,11 @@ import { Contract } from '../../models/contract.interface';
 import { Colors, Typography, Spacing, Shadows, Glass } from '../../utils/design-system';
 import { smoothScrollConfig } from '../../utils/animations';
 import { getAADEStatusMessage } from '../../utils/aade-contract-helper';
+import { useThemeColors } from '../../contexts/theme-context';
 
 export default function ContractsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,7 +150,7 @@ export default function ContractsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Breadcrumb */}
       <Breadcrumb 
         items={[
