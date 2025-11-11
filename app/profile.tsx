@@ -268,7 +268,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionTitle}>Βασικές Πληροφορίες</Text>
           </View>
 
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Ονοματεπώνυμο</Text>
               <TextInput
@@ -325,7 +325,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionTitle}>Εμφάνιση</Text>
           </View>
 
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.fieldGroup}>
               <View style={styles.switchRow}>
                 <View style={styles.switchLabel}>
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionTitle}>Ρυθμίσεις AADE</Text>
           </View>
 
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.fieldGroup}>
               <View style={styles.switchRow}>
                 <View style={styles.switchLabel}>
@@ -455,7 +455,7 @@ export default function ProfileScreen() {
 
         {/* Actions */}
         <View style={styles.section}>
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <TouchableOpacity style={styles.actionButton} onPress={handleSignOut}>
               <Ionicons name="log-out-outline" size={24} color={Colors.error} />
               <Text style={[styles.actionButtonText, { color: Colors.error }]}>Αποσύνδεση</Text>
