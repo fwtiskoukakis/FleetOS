@@ -432,9 +432,9 @@ export default function ContractDetailsScreen() {
 
   const InfoRow = ({ icon, label, value }: any) => (
     <View style={s.infoRow}>
-      <Ionicons name={icon} size={16} color={Colors.primary} />
-      <Text style={s.infoLabel}>{label}:</Text>
-      <Text style={s.infoValue}>{value}</Text>
+      <Ionicons name={icon} size={16} color={colors.primary} />
+      <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{label}:</Text>
+      <Text style={[s.infoValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 
@@ -453,7 +453,7 @@ export default function ContractDetailsScreen() {
       <ScrollView style={s.content} contentContainerStyle={s.scrollContent} {...smoothScrollConfig}>
         {/* AADE Status Badge */}
         {contract.aadeStatus && (
-          <View style={s.aadeStatusContainer}>
+          <View style={[s.aadeStatusContainer, { backgroundColor: colors.card }]}>
             <View style={[s.aadeBadge, { backgroundColor: getAADEStatusMessage(contract.aadeStatus).color + '15' }]}>
               <Ionicons 
                 name={contract.aadeStatus === 'submitted' || contract.aadeStatus === 'completed' ? 'checkmark-circle' : 'alert-circle'} 
@@ -465,14 +465,14 @@ export default function ContractDetailsScreen() {
               </Text>
             </View>
             {contract.aadeDclId && (
-              <Text style={s.aadeDclId}>DCL ID: {contract.aadeDclId}</Text>
+              <Text style={[s.aadeDclId, { color: colors.textSecondary }]}>DCL ID: {contract.aadeDclId}</Text>
             )}
           </View>
         )}
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Ενοικιαστής</Text>
-          <View style={s.card}>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>Ενοικιαστής</Text>
+          <View style={[s.card, { backgroundColor: colors.card }]}>
             <InfoRow icon="person" label="Ονομα" value={contract.renterInfo?.fullName || 'N/A'} />
             <InfoRow icon="mail" label="Email" value={contract.renterInfo?.email || 'N/A'} />
             <InfoRow icon="call" label="Τηλέφωνο" value={contract.renterInfo?.phoneNumber || 'N/A'} />
@@ -483,8 +483,8 @@ export default function ContractDetailsScreen() {
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Οχημα</Text>
-          <View style={s.card}>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>Οχημα</Text>
+          <View style={[s.card, { backgroundColor: colors.card }]}>
             <InfoRow icon="car" label="Οχημα" value={contract.carInfo?.makeModel || 'N/A'} />
             <InfoRow icon="pricetag" label="Πινακίδα" value={contract.carInfo?.licensePlate || 'N/A'} />
             <InfoRow icon="speedometer" label="Χιλιόμετρα" value={`${contract.carCondition?.mileage || contract.carInfo?.mileage || 0} km`} />
@@ -493,8 +493,8 @@ export default function ContractDetailsScreen() {
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Περιοδος & Κοστος</Text>
-          <View style={s.card}>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>Περιοδος & Κοστος</Text>
+          <View style={[s.card, { backgroundColor: colors.card }]}>
             <InfoRow icon="calendar" label="Παραλαβή" value={contract.rentalPeriod?.pickupDate ? new Date(contract.rentalPeriod.pickupDate).toLocaleDateString('el-GR') : 'N/A'} />
             <InfoRow icon="calendar" label="Επιστροφή" value={contract.rentalPeriod?.dropoffDate ? new Date(contract.rentalPeriod.dropoffDate).toLocaleDateString('el-GR') : 'N/A'} />
             <InfoRow icon="time" label="Ημέρες" value={(() => {
@@ -510,8 +510,8 @@ export default function ContractDetailsScreen() {
 
         {contract.damagePoints && contract.damagePoints.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Ζημιες ({contract.damagePoints.length})</Text>
-            <View style={s.card}>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>Ζημιες ({contract.damagePoints.length})</Text>
+            <View style={[s.card, { backgroundColor: colors.card }]}>
               {contract.damagePoints.map((d, idx) => {
                 const markerTypeLabels: Record<string, string> = {
                   'slight-scratch': 'Γρατζουνιά',
