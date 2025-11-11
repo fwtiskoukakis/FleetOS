@@ -713,12 +713,13 @@ export default function NewContractScreen() {
         </View>
 
         {/* 1. Essential Renter Info - Compact */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={styles.sectionTitle}>1. Στοιχεία Ενοικιαστή</Text>
           <View style={styles.row}>
             <TextInput
-              style={[styles.input, styles.halfWidth]}
+              style={[styles.input, styles.halfWidth, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Ονοματεπώνυμο *"
+              placeholderTextColor={colors.textSecondary}
               value={renterInfo.fullName}
               onChangeText={(text) => setRenterInfo({ ...renterInfo, fullName: text })}
             />
@@ -761,7 +762,7 @@ export default function NewContractScreen() {
         </View>
 
         {/* 2. Rental Period - Compact */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={styles.sectionTitle}>2. Περίοδος Ενοικίασης</Text>
           
           <View style={styles.row}>
@@ -900,7 +901,7 @@ export default function NewContractScreen() {
         </View>
 
         {/* 3. Car Info & Condition - Compact */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={styles.sectionTitle}>3. Οχημα & Κατάσταση</Text>
           
           <View style={styles.inputGroup}>
@@ -1005,7 +1006,7 @@ export default function NewContractScreen() {
         </View>
 
         {/* 4. Car Diagram - Compact */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <CarDiagram 
             onAddDamage={handleAddDamage} 
             onRemoveLastDamage={handleRemoveLastDamage}
@@ -1021,7 +1022,7 @@ export default function NewContractScreen() {
         />
 
         {/* 6. Client Signature */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={styles.sectionTitle}>6. Υπογραφή Ενοικιαστή</Text>
           <View style={styles.signatureContainer}>
             <Text style={styles.signatureLabel}>Υπογραφή Ενοικιαστή *</Text>
@@ -1064,7 +1065,7 @@ export default function NewContractScreen() {
         </View>
 
         {/* 7. Observations / Notes */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={styles.sectionTitle}>7. Παρατηρήσεις / Σημειώσεις</Text>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Παρατηρήσεις</Text>
