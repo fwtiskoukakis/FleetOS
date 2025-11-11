@@ -224,14 +224,14 @@ export default function CarDetailsScreen() {
       />
 
       <ScrollView style={s.content} {...smoothScrollConfig} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <View style={s.statusCard}>
+        <View style={[s.statusCard, { backgroundColor: colors.card }]}>
           <View style={[s.statusDot, { backgroundColor: (car.isAvailable ?? true) ? Colors.success : Colors.error }]} />
           <Text style={s.statusText}>{(car.isAvailable ?? true) ? 'Διαθέσιμο' : 'Μη Διαθέσιμο'}</Text>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Πληροφορίες</Text>
-          <View style={s.card}>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>Πληροφορίες</Text>
+          <View style={[s.card, { backgroundColor: colors.card }]}>
             <InfoRow icon="car" label="Οχημα" value={car.makeModel || 'N/A'} />
             <InfoRow icon="pricetag" label="Πινακίδα" value={car.licensePlate || 'N/A'} />
             <InfoRow icon="calendar" label="Ετος" value={car.year?.toString() || 'N/A'} />
@@ -243,7 +243,7 @@ export default function CarDetailsScreen() {
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Στατιστικά</Text>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>Στατιστικά</Text>
           <View style={s.statsGrid}>
             <View style={[s.statCard, { backgroundColor: Colors.primary + '15' }]}>
               <Ionicons name="documents" size={24} color={Colors.primary} />
@@ -284,8 +284,8 @@ export default function CarDetailsScreen() {
         {/* Damages List */}
         {damages.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Ζημιές ({damages.length})</Text>
-            <View style={s.card}>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>Ζημιές ({damages.length})</Text>
+            <View style={[s.card, { backgroundColor: colors.card }]}>
               {damages.map((damage, index) => (
                 <View key={damage.id} style={[s.damageItem, index === damages.length - 1 && s.damageItemLast]}>
                   <View style={s.damageLeft}>
