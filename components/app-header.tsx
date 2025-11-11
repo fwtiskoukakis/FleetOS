@@ -7,7 +7,7 @@ import { AuthService } from '../services/auth.service';
 import { Colors, Typography, Spacing, Glass, BorderRadius, BlurIntensity } from '../utils/design-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FleetOSHeaderLogo } from './fleetos-logo';
-import { useThemeColors } from '../contexts/theme-context';
+import { useThemeColors, useTheme } from '../contexts/theme-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AppHeaderProps {
@@ -26,6 +26,7 @@ interface UserInfo {
 export function AppHeader({ showBack = false, title, showActions = true, onBackPress }: AppHeaderProps) {
   const router = useRouter();
   const colors = useThemeColors();
+  const { isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo>({
@@ -153,6 +154,10 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
           {/* Right */}
           {showActions && (
             <View style={styles.rightActions}>
+              <TouchableOpacity onPress={toggleTheme} style={styles.actionIcon} activeOpacity={0.7}>
+                <Ionicons name={isDark ? "sunny" : "moon"} size={21} color={colors.text} />
+              </TouchableOpacity>
+
               <TouchableOpacity onPress={() => router.push('/calendar')} style={styles.actionIcon} activeOpacity={0.7}>
                 <Ionicons name="calendar-outline" size={21} color={colors.text} />
               </TouchableOpacity>
