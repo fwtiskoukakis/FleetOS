@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initializeAADE } from '../utils/aade-config';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
+import { NotificationBackgroundJobs } from '../services/notification-background-jobs.service';
 import { ThemeProvider } from '../contexts/theme-context';
 import { useNotifications } from '../hooks/useNotifications';
 import { LoadingScreen } from '../components/loading-screen';
@@ -71,6 +72,10 @@ export default function RootLayout() {
           await NotificationService.savePushToken(user.id, token);
         }
       }
+
+      // Start background jobs for operational notifications
+      await NotificationBackgroundJobs.startBackgroundJobs();
+      console.log('Notification background jobs started');
     } catch (error) {
       console.error('Failed to initialize notifications:', error);
     }
@@ -113,6 +118,7 @@ export default function RootLayout() {
               <Stack.Screen name="car-details" />
               <Stack.Screen name="user-management" />
               <Stack.Screen name="aade-settings" />
+              <Stack.Screen name="notification-settings" />
               <Stack.Screen name="dark-mode-test" />
             </Stack>
           )}

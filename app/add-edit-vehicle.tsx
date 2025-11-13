@@ -20,6 +20,7 @@ import { Colors, Shadows } from '../utils/design-system';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { AuthService } from '../services/auth.service';
+import { NotificationScheduler } from '../services/notification-scheduler.service';
 
 type DateField = 'kteoLast' | 'kteoExpiry' | 'insuranceExpiry' | 'tiresFront' | 'tiresRear' | 'tiresNext' | 'lastService';
 
@@ -160,12 +161,21 @@ export default function AddEditVehicleScreen() {
         notes: formData.notes || null,
       };
 
+      let savedVehicle: Vehicle;
       if (isEdit && typeof vehicleId === 'string') {
-        await VehicleService.updateVehicle(vehicleId, vehicleData);
+        savedVehicle = await VehicleService.updateVehicle(vehicleId, vehicleData);
         Alert.alert('Επιτυχία', 'Το όχημα ενημερώθηκε επιτυχώς');
       } else {
-        await VehicleService.createVehicle(vehicleData);
+        savedVehicle = await VehicleService.createVehicle(vehicleData);
         Alert.alert('Επιτυχία', 'Το όχημα προστέθηκε επιτυχώς');
+      }
+
+      // Schedule maintenance notifications
+      try {
+        await NotificationScheduler.scheduleVehicleMaintenanceNotifications(savedVehicle);
+      } catch (error) {
+        console.error('Error scheduling maintenance notifications:', error);
+        // Don't block vehicle save if notification scheduling fails
       }
       
       router.back();

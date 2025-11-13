@@ -586,6 +586,20 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               style={styles.settingButton}
+              onPress={() => router.push('/notification-settings')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingButtonLeft}>
+                <View style={[styles.settingButtonIcon, { backgroundColor: Colors.primary + '15' }]}>
+                  <Ionicons name="notifications-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.settingButtonText}>Ρυθμίσεις Ειδοποιήσεων</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingButton}
               onPress={() => router.push('/auth/reset-password')}
               activeOpacity={0.7}
             >

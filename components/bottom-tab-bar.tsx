@@ -73,12 +73,12 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
         style={[
           styles.blurContainer, 
           { 
-            backgroundColor: colors.isDark ? 'rgba(17, 17, 17, 0.8)' : 'rgba(255, 255, 255, 0.18)',
-            borderColor: colors.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.35)',
+            backgroundColor: colors.isDark ? 'rgba(34, 34, 34, 0.85)' : 'rgba(255, 255, 255, 0.18)',
+            borderColor: colors.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.35)',
           }
         ]}
       >
-        <View style={[styles.glassEdge, { backgroundColor: colors.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.55)' }]} />
+        <View style={[styles.glassEdge, { backgroundColor: colors.isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.55)' }]} />
         <View style={styles.tabBar}>
           {tabs.map((tab) => {
             const active = isActive(tab.route);

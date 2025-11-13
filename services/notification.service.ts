@@ -7,6 +7,8 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { supabase } from '../utils/supabase';
+import { NotificationType, NOTIFICATION_CONFIGS, NotificationPriority } from './notification-types';
+import { NotificationHistoryService } from './notification-history.service';
 
 // Configure how notifications are handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -18,10 +20,11 @@ Notifications.setNotificationHandler({
 });
 
 export interface NotificationData {
-  type: 'contract_reminder' | 'damage_report' | 'payment_due' | 'vehicle_maintenance' | 'general';
-  title: string;
+  type?: NotificationType;
+  title?: string;
   body: string;
   data?: any;
+  priority?: NotificationPriority;
 }
 
 export class NotificationService {
@@ -123,13 +126,32 @@ export class NotificationService {
     trigger?: Notifications.NotificationTriggerInput
   ): Promise<string> {
     try {
+      // Map priority to Android importance
+      let androidPriority = Notifications.AndroidNotificationPriority.DEFAULT;
+      if (notification.priority) {
+        switch (notification.priority) {
+          case 'critical':
+            androidPriority = Notifications.AndroidNotificationPriority.MAX;
+            break;
+          case 'high':
+            androidPriority = Notifications.AndroidNotificationPriority.HIGH;
+            break;
+          case 'medium':
+            androidPriority = Notifications.AndroidNotificationPriority.DEFAULT;
+            break;
+          case 'low':
+            androidPriority = Notifications.AndroidNotificationPriority.LOW;
+            break;
+        }
+      }
+
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
-          title: notification.title,
+          title: notification.title || 'Ειδοποίηση',
           body: notification.body,
           data: { ...notification.data, type: notification.type },
           sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
+          priority: androidPriority,
         },
         trigger: trigger || null, // null = show immediately
       });
@@ -256,6 +278,67 @@ export class NotificationService {
    */
   static async sendImmediateNotification(notification: NotificationData): Promise<string> {
     return await this.scheduleLocalNotification(notification, null);
+  }
+
+  /**
+   * Schedule notification by type (using predefined configurations)
+   */
+  static async scheduleNotificationByType(
+    type: NotificationType,
+    partial: Partial<NotificationData>,
+    trigger?: Date | Notifications.NotificationTriggerInput
+  ): Promise<string> {
+    const config = NOTIFICATION_CONFIGS[type];
+    if (!config) {
+      throw new Error(`Unknown notification type: ${type}`);
+    }
+
+    const notification: NotificationData = {
+      type,
+      title: partial.title || `${config.emoji} ${config.title}`,
+      body: partial.body,
+      data: { ...partial.data, type, category: config.category },
+      priority: config.priority,
+    };
+
+    // Convert Date to trigger if provided
+    const triggerInput = trigger instanceof Date 
+      ? { date: trigger } 
+      : trigger;
+
+    const notificationId = await this.scheduleLocalNotification(notification, triggerInput || null);
+
+    // Save to history if immediate notification (no trigger)
+    if (!trigger) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await NotificationHistoryService.saveToHistory(
+            user.id,
+            type,
+            notification.title || '',
+            notification.body,
+            notification.data,
+            partial.data?.contractId,
+            partial.data?.vehicleId
+          );
+        }
+      } catch (error) {
+        console.error('Error saving to notification history:', error);
+      }
+    }
+
+    return notificationId;
+  }
+
+  /**
+   * Send immediate notification by type
+   */
+  static async sendNotificationByType(
+    type: NotificationType,
+    partial: Partial<NotificationData>
+  ): Promise<string> {
+    return await this.scheduleNotificationByType(type, partial, null);
   }
 
   /**

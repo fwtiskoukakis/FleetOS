@@ -25,6 +25,7 @@ import { SupabaseContractService } from '../services/supabase-contract.service';
 import { AuthService } from '../services/auth.service';
 import { PhotoStorageService } from '../services/photo-storage.service';
 import { CarService } from '../services/car.service';
+import { NotificationScheduler } from '../services/notification-scheduler.service';
 import { Car } from '../models/car.interface';
 import Svg, { Path } from 'react-native-svg';
 import { format } from 'date-fns/format';
@@ -585,6 +586,14 @@ export default function NewContractScreen() {
       };
 
       await SupabaseContractService.saveContract(contract);
+
+      // Schedule all contract notifications
+      try {
+        await NotificationScheduler.scheduleContractNotifications(contract);
+      } catch (error) {
+        console.error('Error scheduling contract notifications:', error);
+        // Don't block contract creation if notification scheduling fails
+      }
 
       // Save the contract ID for photo uploads
       setSavedContractId(contract.id);

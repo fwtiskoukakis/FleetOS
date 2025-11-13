@@ -687,7 +687,7 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             {activityView === 'today' ? 'Σήμερα' : 'Εβδομάδα'}
           </Text>
-          <View style={styles.activityToggle}>
+          <View style={[styles.activityToggle, { backgroundColor: colors.card }]}>
             <TouchableOpacity
               style={[styles.toggleButton, activityView === 'today' && styles.toggleButtonActive]}
               onPress={() => setActivityView('today')}
@@ -1364,7 +1364,6 @@ const styles = StyleSheet.create({
   },
   activityToggle: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
     borderRadius: 8,
     padding: 3,
     gap: 3,

@@ -24,6 +24,7 @@ import { smoothScrollConfig } from '../../utils/animations';
 import { addDays, subDays, startOfDay, format, isSameDay, startOfMonth, endOfMonth, getDay, isBefore, addMonths } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { useThemeColors } from '../../contexts/theme-context';
+import { VehicleCalendarGrid } from '../../components/vehicle-calendar-grid';
 
 interface CalendarEvent {
   id: string;
@@ -48,7 +49,7 @@ export default function CalendarScreen() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<'month' | 'agenda'>('month');
+  const [activeView, setActiveView] = useState<'month' | 'agenda' | 'vehicles'>('month');
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const [dayModalVisible, setDayModalVisible] = useState(false);
@@ -392,18 +393,28 @@ export default function CalendarScreen() {
                   Επερχόμενα
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, activeView === 'vehicles' && styles.toggleButtonActive]}
+                onPress={() => setActiveView('vehicles')}
+              >
+                <Text style={[styles.toggleButtonText, activeView === 'vehicles' && styles.toggleButtonTextActive]}>
+                  Οχήματα
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </SimpleGlassCard>
       </View>
 
-      {loading ? (
+      {loading && activeView !== 'vehicles' ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={Colors.primary} />
         </View>
       ) : (
         <>
-          {activeView === 'month' ? (
+          {activeView === 'vehicles' ? (
+            <VehicleCalendarGrid />
+          ) : activeView === 'month' ? (
             <View style={styles.monthViewContainer}>
               <View style={styles.monthHeader}>
                 <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, -1))}>
@@ -767,7 +778,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   toggleButton: {
-    flex: 1,
+    paddingHorizontal: 16,
     borderRadius: BorderRadius.pill,
     paddingVertical: 9,
     alignItems: 'center',

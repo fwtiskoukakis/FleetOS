@@ -135,7 +135,7 @@ export function AppHeader({ showBack = false, title, showActions = true, onBackP
           />
         </Animated.View>
       </View>
-      <View style={[styles.container, { backgroundColor: colors.isDark ? 'rgba(8, 47, 73, 0.25)' : 'rgba(255, 255, 255, 0.25)' }]}>
+      <View style={[styles.container, { backgroundColor: colors.isDark ? 'rgba(26, 26, 26, 0.75)' : 'rgba(255, 255, 255, 0.25)' }]}>
         <View style={styles.content}>
           {/* Left */}
           {showBack ? (
