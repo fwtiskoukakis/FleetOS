@@ -55,7 +55,7 @@ export interface DamagePoint {
   y: number;
   view: 'front' | 'rear' | 'left' | 'right';
   description?: string;
-  severity: 'minor' | 'moderate' | 'major';
+  severity: 'minor' | 'moderate' | 'severe'; // Matching mobile app
   markerType?: string;
 }
 
@@ -208,12 +208,8 @@ export async function saveContract(contract: Contract): Promise<Contract> {
     // Auto-create customer profile
     const customerId = await autoCreateCustomer(contract, organizationId);
 
-    // Generate contract ID if not provided
-    const contractId = contract.id || crypto.randomUUID();
-
-    // Prepare contract data
+    // Prepare contract data (let database generate ID)
     const contractData: any = {
-      id: contractId,
       user_id: contract.userId,
       organization_id: organizationId,
       customer_id: customerId,
@@ -273,18 +269,36 @@ export async function saveContract(contract: Contract): Promise<Contract> {
       throw contractError;
     }
 
-    // Save damage points if any
+    // Ensure we have the saved contract with ID from database
+    if (!savedContract || !savedContract.id) {
+      throw new Error('Failed to save contract: No contract ID returned from database');
+    }
+
+    const contractId = savedContract.id; // Use the ID from the saved contract in database
+
+    // Save damage points if any (matching mobile app logic exactly)
     if (contract.damagePoints && contract.damagePoints.length > 0) {
-      const damagePointsData = contract.damagePoints.map(dp => ({
-        contract_id: contractId,
-        location: `${dp.view} side`,
-        x_position: dp.x,
-        y_position: dp.y,
-        view_side: dp.view,
-        description: dp.description || '',
-        severity: dp.severity,
-        marker_type: dp.markerType || 'slight-scratch',
-      }));
+      const damagePointsData = contract.damagePoints.map(dp => {
+        // Create descriptive location from view_side (required field in some schemas)
+        const viewNames: Record<string, string> = {
+          'front': 'Front',
+          'rear': 'Rear',
+          'left': 'Left',
+          'right': 'Right'
+        };
+        const location = viewNames[dp.view] || dp.view || 'Unknown';
+        
+        return {
+          contract_id: contractId,
+          location: location, // Required field: descriptive location
+          x_position: dp.x, // Percentage position (0-100)
+          y_position: dp.y, // Percentage position (0-100)
+          view_side: dp.view, // 'front', 'rear', 'left', 'right'
+          description: dp.description || '',
+          severity: dp.severity, // 'minor', 'moderate', 'severe'
+          marker_type: dp.markerType || 'slight-scratch', // 'slight-scratch', 'heavy-scratch', 'bent', 'broken'
+        };
+      });
 
       const { error: damageError } = await supabase
         .from('damage_points')
@@ -293,6 +307,54 @@ export async function saveContract(contract: Contract): Promise<Contract> {
       if (damageError) {
         console.error('Error saving damage points:', damageError);
         // Don't throw - contract is saved
+      }
+    }
+
+    // Upload photos to storage if any (matching mobile app logic)
+    if (contract.photoUris && contract.photoUris.length > 0) {
+      try {
+        const { PhotoStorageService } = await import('./photo-storage.service');
+        const uploadResults = await PhotoStorageService.uploadContractPhotos(contractId, contract.photoUris);
+        
+        // Save photo references to database (matching actual schema: id, contract_id, photo_url, photo_type, description, created_at)
+        const photosData = uploadResults.map((result) => ({
+          contract_id: contractId,
+          photo_url: result.url,
+          photo_type: 'general', // Default type, matching mobile app
+        }));
+
+        const { error: photosError } = await supabase
+          .from('contract_photos')
+          .insert(photosData);
+
+        if (photosError) {
+          console.error('Error saving photo references:', photosError);
+          // Don't throw - photos are uploaded to storage
+        }
+      } catch (error) {
+        console.error('Error uploading photos:', error);
+        // Don't throw - contract is saved
+      }
+    }
+
+    // Upload signature to storage if it's a base64 data URI (matching mobile app logic)
+    if (contract.clientSignature && contract.clientSignature.startsWith('data:image')) {
+      try {
+        const { PhotoStorageService } = await import('./photo-storage.service');
+        const uploadResult = await PhotoStorageService.uploadSignatureFromBase64(
+          contractId,
+          contract.clientSignature,
+          'client'
+        );
+        
+        // Update contract with storage URL
+        await supabase
+          .from('contracts')
+          .update({ client_signature_url: uploadResult.url })
+          .eq('id', contractId);
+      } catch (error) {
+        console.error('Error uploading signature:', error);
+        // Don't throw - contract is saved, signature can stay as base64 in database
       }
     }
 

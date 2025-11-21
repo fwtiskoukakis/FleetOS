@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { saveContract, type Contract, type RenterInfo, type RentalPeriod, type CarInfo, type CarCondition } from '@/lib/contract.service';
+import { saveContract, type Contract, type RenterInfo, type RentalPeriod, type CarInfo, type CarCondition, type DamagePoint } from '@/lib/contract.service';
 import { 
   ArrowLeft, 
   Save, 
@@ -15,11 +15,19 @@ import {
   Clock, 
   DollarSign,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  X,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
+import { SignaturePad } from '@/components/SignaturePad';
+import { CarDiagram } from '@/components/CarDiagram';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
+
+type DamageMarkerType = 'slight-scratch' | 'heavy-scratch' | 'bent' | 'broken';
 
 const LOCATION_OPTIONS = ['Piraeus Office', 'Piraeus Port', 'Athens Airport', 'Other'] as const;
 type LocationOption = typeof LOCATION_OPTIONS[number];
@@ -87,6 +95,20 @@ export default function NewContractPage() {
   });
   
   const [observations, setObservations] = useState('');
+  
+  // Damage points state
+  const [damagePoints, setDamagePoints] = useState<DamagePoint[]>([]);
+  
+  // Signature state
+  const [clientSignature, setClientSignature] = useState<string>('');
+  const [clientSignaturePaths, setClientSignaturePaths] = useState<string[]>([]);
+  
+  // Photo state
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   
   // Load available cars
   useEffect(() => {
@@ -260,6 +282,10 @@ export default function NewContractPage() {
       setError('Παρακαλώ συμπληρώστε το συνολικό κόστος');
       return false;
     }
+    if (!clientSignature?.trim()) {
+      setError('Παρακαλώ προσθέστε την υπογραφή του ενοικιαστή');
+      return false;
+    }
     return true;
   }
   
@@ -300,7 +326,7 @@ export default function NewContractPage() {
         ? (dropoffLocationOption === 'Other' ? dropoffCustomLocation : dropoffLocationOption)
         : finalPickupLocation;
       
-      // Create contract object
+      // Create contract object (matching mobile app structure)
       const contract: Contract = {
         userId: user.id,
         renterInfo,
@@ -311,6 +337,9 @@ export default function NewContractPage() {
         },
         carInfo,
         carCondition,
+        damagePoints: damagePoints.length > 0 ? damagePoints : undefined,
+        photoUris: photos.length > 0 ? photos : uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : undefined,
+        clientSignature: clientSignature || undefined,
         observations: observations || undefined,
         status,
       };
@@ -864,11 +893,202 @@ export default function NewContractPage() {
             </div>
           </div>
           
-          {/* 6. Observations Section */}
+          {/* 4. Car Diagram - Damage Points Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Car className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-bold text-gray-900">4. Car Diagram - Damage Points</h2>
+            </div>
+            
+            <CarDiagram
+              onAddDamage={(x, y, view, markerType) => {
+                const newDamage: DamagePoint = {
+                  id: `damage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  x,
+                  y,
+                  view,
+                  severity: (markerType === 'broken' ? 'severe' : markerType === 'heavy-scratch' ? 'moderate' : 'minor') as 'minor' | 'moderate' | 'severe',
+                  markerType: markerType,
+                };
+                setDamagePoints([...damagePoints, newDamage]);
+              }}
+              onRemoveLastDamage={() => {
+                if (damagePoints.length > 0) {
+                  setDamagePoints(damagePoints.slice(0, -1));
+                }
+              }}
+              damagePoints={damagePoints}
+              isEditable={true}
+            />
+          </div>
+          
+          {/* 5. Photos Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Camera className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-bold text-gray-900">5. Photos</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // Create file input for camera/gallery
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.capture = 'environment'; // Prefer camera
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          const dataUrl = e.target?.result as string;
+                          setPhotos([...photos, dataUrl]);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Camera className="w-4 h-4" />
+                  Take Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.multiple = true;
+                    input.onchange = async (e) => {
+                      const files = Array.from((e.target as HTMLInputElement).files || []);
+                      for (const file of files) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          const dataUrl = e.target?.result as string;
+                          setPhotos([...photos, dataUrl]);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload from Gallery
+                </button>
+              </div>
+              
+              {photos.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={photo}
+                        alt={`Photo ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border border-gray-300 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          setSelectedPhoto(photo);
+                          setShowPhotoModal(true);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotos(photos.filter((_, i) => i !== index));
+                          setUploadedPhotoUrls(uploadedPhotoUrls.filter((_, i) => i !== index));
+                        }}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {photos.length === 0 && (
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                  <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">No photos added yet</p>
+                  <p className="text-xs text-gray-500 mt-1">Click buttons above to add photos</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* 6. Client Signature Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <User className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-bold text-gray-900">6. Client Signature *</h2>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Client Signature *</label>
+              {clientSignature ? (
+                <div className="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-600">Signature captured</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientSignature('');
+                        setClientSignaturePaths([]);
+                      }}
+                      className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                    >
+                      Change Signature
+                    </button>
+                  </div>
+                  <div className="border border-gray-200 rounded bg-white p-2">
+                    <img
+                      src={clientSignature}
+                      alt="Client signature"
+                      className="w-full h-32 object-contain"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <SignaturePad
+                    onSignatureSave={(dataUri) => {
+                      setClientSignature(dataUri);
+                      // Extract paths from SVG for preview (similar to mobile app)
+                      try {
+                        if (dataUri.startsWith('data:image/svg+xml;base64,')) {
+                          const base64Data = dataUri.split(',')[1];
+                          const svgContent = decodeURIComponent(escape(atob(base64Data)));
+                          const pathMatches = svgContent.match(/<path[^>]*d="([^"]*)"[^>]*>/g);
+                          if (pathMatches) {
+                            const paths = pathMatches.map(match => {
+                              const dMatch = match.match(/d="([^"]*)"/);
+                              return dMatch ? dMatch[1] : '';
+                            }).filter(path => path !== '');
+                            setClientSignaturePaths(paths);
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error parsing signature:', error);
+                      }
+                    }}
+                    initialSignature={clientSignature}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* 7. Observations Section */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-bold text-gray-900">6. Observations / Notes</h2>
+              <h2 className="text-lg font-bold text-gray-900">7. Observations / Notes</h2>
             </div>
             
             <div>
@@ -882,6 +1102,26 @@ export default function NewContractPage() {
               />
             </div>
           </div>
+          
+          {/* Photo Modal */}
+          {showPhotoModal && selectedPhoto && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={() => setShowPhotoModal(false)}>
+              <div className="relative max-w-4xl max-h-full" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(false)}
+                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75 z-10"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+                <img
+                  src={selectedPhoto}
+                  alt="Full size photo"
+                  className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                />
+              </div>
+            </div>
+          )}
           
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-4 pb-8">
