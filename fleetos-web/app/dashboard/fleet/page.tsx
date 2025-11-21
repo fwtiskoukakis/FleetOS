@@ -59,6 +59,7 @@ export default function FleetPage() {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
+          .then(result => ({ data: result.data, error: result.error }))
       );
       
       // Also fetch by organization_id if available
@@ -69,6 +70,7 @@ export default function FleetPage() {
             .select('*')
             .eq('organization_id', organizationId)
             .order('created_at', { ascending: false })
+            .then(result => ({ data: result.data, error: result.error }))
         );
       }
       
