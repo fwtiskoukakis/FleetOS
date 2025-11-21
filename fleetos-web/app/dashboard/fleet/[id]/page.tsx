@@ -339,8 +339,10 @@ export default function VehicleDetailsPage() {
               <p className="text-base font-semibold text-gray-900">{vehicle.current_mileage?.toLocaleString() || 0} km</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 mb-1">GPS Tracking</p>
-              <p className="text-base font-semibold text-gray-900">{vehicle.has_gps ? 'Yes' : 'No'}</p>
+              <p className="text-sm text-gray-500 mb-1">Insurance Type</p>
+              <p className="text-base font-semibold text-gray-900 capitalize">
+                {vehicle.insurance_type === 'basic' ? 'Basic' : vehicle.insurance_type === 'full' ? 'Full' : vehicle.insurance_type || 'N/A'}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">Status</p>
@@ -350,6 +352,103 @@ export default function VehicleDetailsPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Financial Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Financial</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Total Rentals</p>
+              <p className="text-base font-semibold text-gray-900">{stats.totalContracts}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Total Revenue</p>
+              <p className="text-base font-semibold text-gray-900">€{stats.totalRevenue.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Insurance & Documents Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Insurance & Documents</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Insurance Company</p>
+              <p className="text-base font-semibold text-gray-900">{vehicle.insurance_company || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Policy Number</p>
+              <p className="text-base font-semibold text-gray-900">{vehicle.insurance_policy_number || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Insurance Expiry</p>
+              <p className="text-base font-semibold text-gray-900">
+                {vehicle.insurance_expiry_date ? format(parseISO(vehicle.insurance_expiry_date), 'dd/MM/yyyy') : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">KTEO Expiry</p>
+              <p className="text-base font-semibold text-gray-900">
+                {vehicle.kteo_expiry_date ? format(parseISO(vehicle.kteo_expiry_date), 'dd/MM/yyyy') : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Damage History Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900">Damage History</h3>
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+              {stats.totalDamages}
+            </span>
+          </div>
+          
+          {loadingDamages ? (
+            <div className="text-center py-8">
+              <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-gray-500">Loading damage history...</p>
+            </div>
+          ) : damages.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-2" />
+              <p className="text-gray-700 font-medium">No damages recorded</p>
+              <p className="text-sm text-gray-500 mt-1">The vehicle is in excellent condition!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {damages.map((damage) => (
+                <div key={damage.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        damage.severity === 'severe' ? 'bg-red-100 text-red-700' :
+                        damage.severity === 'moderate' ? 'bg-orange-100 text-orange-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {damage.severity === 'severe' ? 'Severe' :
+                         damage.severity === 'moderate' ? 'Moderate' :
+                         'Minor'}
+                      </span>
+                      <span className="text-sm text-gray-500">•</span>
+                      <span className="text-sm text-gray-500">{getViewSideLabel(damage.view_side)}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {format(parseISO(damage.created_at), 'dd/MM/yyyy')}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-2">{damage.description || 'No description'}</p>
+                  {damage.contracts && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <User className="w-4 h-4" />
+                      <span>{damage.contracts.renter_full_name}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
