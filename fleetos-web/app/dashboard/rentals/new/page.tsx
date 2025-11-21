@@ -96,11 +96,39 @@ export default function NewContractPage() {
   async function loadCars() {
     try {
       setLoadingCars(true);
-      const { data, error } = await supabase
+      
+      // Get user's organization_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setAvailableCars([]);
+        return;
+      }
+
+      // Get user's organization_id
+      const { data: userData } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const organizationId = userData?.organization_id;
+
+      // Build query with organization filter
+      let query = supabase
         .from('cars')
         .select('id, make, model, license_plate, year, color, make_model, category')
         .eq('status', 'available')
         .order('license_plate', { ascending: true });
+
+      // Filter by organization_id if available, otherwise filter by user_id
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      } else {
+        // Fallback to user_id if no organization_id
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
       
       if (error) {
         console.error('Error loading cars:', error);
