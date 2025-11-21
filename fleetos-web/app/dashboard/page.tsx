@@ -186,35 +186,18 @@ export default function DashboardPage() {
       if (!orgId) {
         console.log('No organization_id in user record, trying to find from user data...');
         
-        // Try to get organization from contracts created by this user
-        const { data: contract } = await supabase
+        // Try to get organization from contracts (check any contract)
+        const { data: contracts } = await supabase
           .from('contracts')
           .select('organization_id')
-          .eq('created_by', authUser.id)
-          .limit(1)
-          .single();
+          .limit(10);
         
-        if (contract?.organization_id) {
-          orgId = contract.organization_id;
-          console.log('Found organization from contracts:', orgId);
-          
-          // Update user record with organization_id
-          await supabase
-            .from('users')
-            .update({ organization_id: orgId })
-            .eq('id', authUser.id);
-        } else {
-          // Try to get organization from cars
-          const { data: car } = await supabase
-            .from('cars')
-            .select('organization_id')
-            .eq('created_by', authUser.id)
-            .limit(1)
-            .single();
-          
-          if (car?.organization_id) {
-            orgId = car.organization_id;
-            console.log('Found organization from cars:', orgId);
+        if (contracts && contracts.length > 0) {
+          // Find first contract with organization_id
+          const contractWithOrg = contracts.find(c => c.organization_id);
+          if (contractWithOrg?.organization_id) {
+            orgId = contractWithOrg.organization_id;
+            console.log('Found organization from contracts:', orgId);
             
             // Update user record with organization_id
             await supabase
@@ -223,15 +206,43 @@ export default function DashboardPage() {
               .eq('id', authUser.id);
           }
         }
+        
+        // If still not found, try cars
+        if (!orgId) {
+          const { data: cars } = await supabase
+            .from('cars')
+            .select('organization_id')
+            .limit(10);
+          
+          if (cars && cars.length > 0) {
+            const carWithOrg = cars.find(c => c.organization_id);
+            if (carWithOrg?.organization_id) {
+              orgId = carWithOrg.organization_id;
+              console.log('Found organization from cars:', orgId);
+              
+              // Update user record with organization_id
+              await supabase
+                .from('users')
+                .update({ organization_id: orgId })
+                .eq('id', authUser.id);
+            }
+          }
+        }
       }
 
+      // If still no organization_id, load data without organization filter (like mobile app)
+      // The data might not have organization_id or RLS will filter it
       if (!orgId) {
-        console.log('User has no organization_id and could not find it from data');
-        // Show dashboard with 0 stats - user can still access dashboard
-        // They can create an organization later or it will be created during onboarding
-        console.log('Showing dashboard with no organization (stats will be 0)');
+        console.log('No organization_id found - loading all data (will be filtered by RLS or show all)');
         
-        // Set user data even without organization
+        // Load stats without organization filter - same as mobile app
+        await Promise.all([
+          loadCarCountAll(),
+          loadActiveRentalsAll(),
+          loadCustomerCountAll(),
+          loadMonthlyRevenueAll(),
+        ]);
+        
         setUser(userData);
         return;
       }
@@ -284,6 +295,25 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadCarCountAll() {
+    try {
+      // Load all cars (no organization filter) - same as mobile app
+      const { count, error } = await supabase
+        .from('cars')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error('Error loading car count (all):', error);
+        return;
+      }
+      
+      console.log('Total car count (all):', count || 0);
+      setStats(prev => ({ ...prev, totalCars: count || 0 }));
+    } catch (error) {
+      console.error('Exception loading car count (all):', error);
+    }
+  }
+
   async function loadActiveRentals(orgId: string) {
     try {
       const { count, error } = await supabase
@@ -304,6 +334,26 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadActiveRentalsAll() {
+    try {
+      // Load all active rentals (no organization filter) - same as mobile app
+      const { count, error } = await supabase
+        .from('contracts')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['active', 'pending']);
+      
+      if (error) {
+        console.error('Error loading active rentals (all):', error);
+        return;
+      }
+      
+      console.log('Active rentals (all):', count || 0);
+      setStats(prev => ({ ...prev, activeRentals: count || 0 }));
+    } catch (error) {
+      console.error('Exception loading active rentals (all):', error);
+    }
+  }
+
   async function loadCustomerCount(orgId: string) {
     try {
       const { count, error } = await supabase
@@ -320,6 +370,25 @@ export default function DashboardPage() {
       setStats(prev => ({ ...prev, totalCustomers: count || 0 }));
     } catch (error) {
       console.error('Exception loading customer count:', error);
+    }
+  }
+
+  async function loadCustomerCountAll() {
+    try {
+      // Load all customers (no organization filter) - same as mobile app
+      const { count, error } = await supabase
+        .from('customer_profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error('Error loading customer count (all):', error);
+        return;
+      }
+      
+      console.log('Customer count (all):', count || 0);
+      setStats(prev => ({ ...prev, totalCustomers: count || 0 }));
+    } catch (error) {
+      console.error('Exception loading customer count (all):', error);
     }
   }
 
@@ -347,6 +416,32 @@ export default function DashboardPage() {
       setStats(prev => ({ ...prev, monthlyRevenue: revenue }));
     } catch (error) {
       console.error('Exception loading monthly revenue:', error);
+    }
+  }
+
+  async function loadMonthlyRevenueAll() {
+    try {
+      // Load all completed contracts for this month (no organization filter) - same as mobile app
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('total_price, total_cost')
+        .eq('status', 'completed')
+        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+
+      if (error) {
+        console.error('Error loading monthly revenue (all):', error);
+        return;
+      }
+
+      const revenue = data?.reduce((sum, contract) => {
+        const price = contract.total_price || contract.total_cost || 0;
+        return sum + price;
+      }, 0) || 0;
+      
+      console.log('Monthly revenue (all):', revenue);
+      setStats(prev => ({ ...prev, monthlyRevenue: revenue }));
+    } catch (error) {
+      console.error('Exception loading monthly revenue (all):', error);
     }
   }
 
