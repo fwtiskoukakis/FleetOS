@@ -35,12 +35,34 @@ export default function CustomerDetailsPage() {
     try {
       setLoading(true);
       
-      // First try to load from customer_profiles
-      const { data: profileData, error: profileError } = await supabase
+      // Get user's organization_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('Not authenticated');
+        return;
+      }
+
+      // Get user's organization_id
+      const { data: userData } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const organizationId = userData?.organization_id;
+
+      // Build query with organization filter
+      let query = supabase
         .from('customer_profiles')
         .select('*')
-        .eq('id', customerId)
-        .maybeSingle();
+        .eq('id', customerId);
+
+      // Filter by organization_id if available
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
+
+      const { data: profileData, error: profileError } = await query.maybeSingle();
 
       if (profileData) {
         setCustomer(profileData);
@@ -58,12 +80,20 @@ export default function CustomerDetailsPage() {
       }
 
       // If not found in customer_profiles, try to load from contracts
-      const { data: contracts, error: contractsError } = await supabase
+      let contractsQuery = supabase
         .from('contracts')
         .select('renter_full_name, renter_email, renter_phone_number, renter_id_number, renter_address, renter_driver_license_number')
         .or(`renter_email.eq.${customerId},renter_phone_number.eq.${customerId}`)
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      // Filter by organization_id if available, otherwise filter by user_id
+      if (organizationId) {
+        contractsQuery = contractsQuery.eq('organization_id', organizationId);
+      } else {
+        contractsQuery = contractsQuery.eq('user_id', user.id);
+      }
+
+      const { data: contracts, error: contractsError } = await contractsQuery.maybeSingle();
 
       if (contracts) {
         // Create customer object from contract data

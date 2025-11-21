@@ -48,12 +48,37 @@ export default function ContractDetailsPage() {
     try {
       setLoading(true);
       
-      // Load contract
-      const { data: contractData, error: contractError } = await supabase
+      // Get user's organization_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      // Get user's organization_id
+      const { data: userData } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const organizationId = userData?.organization_id;
+
+      // Build query with organization filter
+      let query = supabase
         .from('contracts')
         .select('*')
-        .eq('id', contractId)
-        .maybeSingle();
+        .eq('id', contractId);
+
+      // Filter by organization_id if available, otherwise filter by user_id
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      } else {
+        // Fallback to user_id if no organization_id
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data: contractData, error: contractError } = await query.maybeSingle();
       
       if (contractError) {
         console.error('Error loading contract:', contractError);
