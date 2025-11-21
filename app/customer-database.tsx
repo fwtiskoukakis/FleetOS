@@ -20,9 +20,11 @@ export default function CustomerDatabaseScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'vip' | 'blacklisted' | 'expired'>('all');
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerProfile | null>(null);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [customerHistory, setCustomerHistory] = useState<CustomerHistory | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<CustomerProfile | null>(null);
   const [newCustomer, setNewCustomer] = useState({
     full_name: '',
     email: '',
@@ -204,7 +206,7 @@ export default function CustomerDatabaseScreen() {
                     `Επιλέξτε ενέργεια για τον πελάτη "${customer.full_name}":`,
                     [
                       { text: 'Ακύρωση', style: 'cancel' },
-                      { text: 'Επεξεργασία', onPress: () => {} },
+                      { text: 'Επεξεργασία', onPress: () => editCustomer(customer) },
                       { text: customer.vip_status ? 'Αφαίρεση VIP' : 'Προσθήκη VIP', onPress: () => toggleVipStatus(customer) },
                       { text: 'Ιστορικό', onPress: () => viewCustomerDetails(customer) },
                       { text: 'Διαγραφή', style: 'destructive', onPress: () => deleteCustomer(customer) },
@@ -242,6 +244,60 @@ export default function CustomerDatabaseScreen() {
         </TouchableOpacity>
       </SimpleGlassCard>
     );
+  }
+
+  function editCustomer(customer: CustomerProfile) {
+    setEditingCustomer(customer);
+    setNewCustomer({
+      full_name: customer.full_name || '',
+      email: customer.email || '',
+      phone_primary: customer.phone_primary || '',
+      id_number: customer.id_number || '',
+      date_of_birth: customer.date_of_birth || '',
+      nationality: customer.nationality || 'GR',
+      driver_license_number: customer.driver_license_number || '',
+      driver_license_expiry: customer.driver_license_expiry || '',
+      address: customer.address || '',
+      company_name: customer.company_name || '',
+      company_vat_number: customer.company_vat_number || '',
+      notes: customer.notes || '',
+    });
+    setShowEditCustomerModal(true);
+  }
+
+  async function updateCustomer() {
+    if (!editingCustomer) return;
+
+    const validation = CustomerService.validateCustomerData(newCustomer);
+    if (!validation.isValid) {
+      Alert.alert('Σφάλμα', validation.errors.join('\n'));
+      return;
+    }
+
+    try {
+      await CustomerService.updateCustomer(editingCustomer.id, newCustomer);
+      Alert.alert('Επιτυχία', 'Ο πελάτης ενημερώθηκε επιτυχώς!');
+      setShowEditCustomerModal(false);
+      setEditingCustomer(null);
+      setNewCustomer({
+        full_name: '',
+        email: '',
+        phone_primary: '',
+        id_number: '',
+        date_of_birth: '',
+        nationality: 'GR',
+        driver_license_number: '',
+        driver_license_expiry: '',
+        address: '',
+        company_name: '',
+        company_vat_number: '',
+        notes: '',
+      });
+      loadCustomerData();
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      Alert.alert('Σφάλμα', 'Αποτυχία ενημέρωσης πελάτη.');
+    }
   }
 
   function renderAddCustomerModal() {
@@ -415,7 +471,10 @@ export default function CustomerDatabaseScreen() {
               <Text style={styles.modalCancelButton}>Κλείσιμο</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Λεπτομέρειες Πελάτη</Text>
-            <TouchableOpacity onPress={() => {}}>
+            <TouchableOpacity onPress={() => {
+              setShowCustomerDetails(false);
+              editCustomer(selectedCustomer);
+            }}>
               <Text style={styles.modalSaveButton}>Επεξεργασία</Text>
             </TouchableOpacity>
           </View>
@@ -629,6 +688,7 @@ export default function CustomerDatabaseScreen() {
       </ScrollView>
 
       {renderAddCustomerModal()}
+      {renderEditCustomerModal()}
       {renderCustomerDetailsModal()}
     </SafeAreaView>
   );

@@ -76,7 +76,8 @@ export default function BookingHomePage({
                 className="h-12 object-contain"
               />
             ) : (
-              <div className="flex items-center gap-2">
+              <FleetOSLogo variant="horizontal-light" size={140} showText={true} />
+            )}
                 <FleetOSLogo variant="icon" size={40} />
                 <span className="text-xl font-bold text-gray-900">{companyName}</span>
               </div>

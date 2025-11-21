@@ -335,12 +335,9 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-6xl">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Car className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-white">FleetOS</span>
-              </div>
+              <Link href="/" className="flex items-center gap-2 mb-4">
+                <FleetOSLogo variant="horizontal-dark" size={140} showText={true} />
+              </Link>
               <p className="text-sm">
                 Complete fleet management solution for rental companies.
               </p>

@@ -189,10 +189,10 @@ export default function CustomersPage() {
                 </div>
 
                 <button
-                  onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
+                  onClick={() => router.push(`/dashboard/customers/${encodeURIComponent(customer.id)}`)}
                   className="mt-4 w-full px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  View Details
+                  View & Edit
                 </button>
               </div>
             ))}
