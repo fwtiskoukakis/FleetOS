@@ -34,72 +34,174 @@ export default function DashboardPage() {
   async function loadDashboard() {
     try {
       // Get current user
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error('Auth error:', authError);
+        router.push('/login');
+        return;
+      }
+      
       if (!authUser) {
+        console.error('No authenticated user');
         router.push('/login');
         return;
       }
 
-      // Get user data with organization
-      const { data: userData } = await supabase
+      console.log('Loading dashboard for user:', authUser.email);
+
+      // Get user data with organization - same as mobile app
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*, organization:organizations(*)')
         .eq('id', authUser.id)
         .single();
 
+      if (userError) {
+        console.error('Error loading user data:', userError);
+        console.error('User ID:', authUser.id);
+        // Try to load organization_id directly
+        const { data: userDataSimple, error: userErrorSimple } = await supabase
+          .from('users')
+          .select('organization_id')
+          .eq('id', authUser.id)
+          .single();
+        
+        if (userErrorSimple || !userDataSimple?.organization_id) {
+          console.error('User has no organization_id. Error:', userErrorSimple);
+          alert('Your account is not associated with an organization. Please contact support.');
+          return;
+        }
+        
+        // Load stats with organization_id from simple query
+        const orgId = userDataSimple.organization_id;
+        console.log('Loading stats for organization:', orgId);
+        await Promise.all([
+          loadCarCount(orgId),
+          loadActiveRentals(orgId),
+          loadCustomerCount(orgId),
+          loadMonthlyRevenue(orgId),
+        ]);
+        
+        // Get organization details
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', orgId)
+          .single();
+        
+        setUser({ ...userDataSimple, organization: org });
+        return;
+      }
+
+      console.log('User data loaded:', userData);
       setUser(userData);
 
-      if (userData?.organization_id) {
-        // Load stats
-        await Promise.all([
-          loadCarCount(userData.organization_id),
-          loadActiveRentals(userData.organization_id),
-          loadCustomerCount(userData.organization_id),
-          loadMonthlyRevenue(userData.organization_id),
-        ]);
+      if (!userData?.organization_id) {
+        console.error('User data exists but no organization_id');
+        alert('Your account is not associated with an organization. Please contact support.');
+        return;
       }
+
+      // Load stats
+      console.log('Loading stats for organization:', userData.organization_id);
+      await Promise.all([
+        loadCarCount(userData.organization_id),
+        loadActiveRentals(userData.organization_id),
+        loadCustomerCount(userData.organization_id),
+        loadMonthlyRevenue(userData.organization_id),
+      ]);
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      alert('Failed to load dashboard data. Please refresh the page.');
     } finally {
       setLoading(false);
     }
   }
 
   async function loadCarCount(orgId: string) {
-    const { count } = await supabase
-      .from('cars')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', orgId);
-    setStats(prev => ({ ...prev, totalCars: count || 0 }));
+    try {
+      const { count, error } = await supabase
+        .from('cars')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+      
+      if (error) {
+        console.error('Error loading car count:', error);
+        return;
+      }
+      
+      console.log('Car count for org', orgId, ':', count || 0);
+      setStats(prev => ({ ...prev, totalCars: count || 0 }));
+    } catch (error) {
+      console.error('Exception loading car count:', error);
+    }
   }
 
   async function loadActiveRentals(orgId: string) {
-    const { count } = await supabase
-      .from('contracts')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', orgId)
-      .in('status', ['active', 'pending']);
-    setStats(prev => ({ ...prev, activeRentals: count || 0 }));
+    try {
+      const { count, error } = await supabase
+        .from('contracts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .in('status', ['active', 'pending']);
+      
+      if (error) {
+        console.error('Error loading active rentals:', error);
+        return;
+      }
+      
+      console.log('Active rentals for org', orgId, ':', count || 0);
+      setStats(prev => ({ ...prev, activeRentals: count || 0 }));
+    } catch (error) {
+      console.error('Exception loading active rentals:', error);
+    }
   }
 
   async function loadCustomerCount(orgId: string) {
-    const { count } = await supabase
-      .from('customer_profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', orgId);
-    setStats(prev => ({ ...prev, totalCustomers: count || 0 }));
+    try {
+      const { count, error } = await supabase
+        .from('customer_profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+      
+      if (error) {
+        console.error('Error loading customer count:', error);
+        return;
+      }
+      
+      console.log('Customer count for org', orgId, ':', count || 0);
+      setStats(prev => ({ ...prev, totalCustomers: count || 0 }));
+    } catch (error) {
+      console.error('Exception loading customer count:', error);
+    }
   }
 
   async function loadMonthlyRevenue(orgId: string) {
-    const { data } = await supabase
-      .from('contracts')
-      .select('total_price')
-      .eq('organization_id', orgId)
-      .eq('status', 'completed')
-      .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+    try {
+      // Try total_price first, fallback to total_cost (mobile app uses total_cost)
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('total_price, total_cost')
+        .eq('organization_id', orgId)
+        .eq('status', 'completed')
+        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
 
-    const revenue = data?.reduce((sum, contract) => sum + (contract.total_price || 0), 0) || 0;
-    setStats(prev => ({ ...prev, monthlyRevenue: revenue }));
+      if (error) {
+        console.error('Error loading monthly revenue:', error);
+        return;
+      }
+
+      const revenue = data?.reduce((sum, contract) => {
+        const price = contract.total_price || contract.total_cost || 0;
+        return sum + price;
+      }, 0) || 0;
+      
+      console.log('Monthly revenue for org', orgId, ':', revenue);
+      setStats(prev => ({ ...prev, monthlyRevenue: revenue }));
+    } catch (error) {
+      console.error('Exception loading monthly revenue:', error);
+    }
   }
 
   if (loading) {
