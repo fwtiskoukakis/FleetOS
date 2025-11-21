@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { getOrganizationId } from '@/lib/organization';
 import { Car, Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 
@@ -21,21 +22,16 @@ export default function FleetPage() {
     try {
       setLoading(true);
       
-      // Get user's organization_id
+      // Get user's organization_id using helper
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setCars([]);
+        setLoading(false);
         return;
       }
 
-      // Get user's organization_id
-      const { data: userData } = await supabase
-        .from('users')
-        .select('organization_id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      const organizationId = userData?.organization_id;
+      // Get organization_id (will try to infer from contracts/cars if not set)
+      const organizationId = await getOrganizationId(user.id);
 
       // Build query with organization filter
       let query = supabase
@@ -43,24 +39,56 @@ export default function FleetPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Filter by organization_id if available, otherwise filter by user_id
+      // Filter by organization_id if available
       if (organizationId) {
         query = query.eq('organization_id', organizationId);
       } else {
-        // Fallback to user_id if no organization_id
-        query = query.eq('user_id', user.id);
+        // Fallback: Try to get cars by user_id OR cars without organization_id
+        // This handles cases where cars exist but organization_id wasn't set
+        query = query.or(`user_id.eq.${user.id},organization_id.is.null`);
       }
 
       const { data, error } = await query;
 
       if (error) {
         console.error('Error loading cars:', error);
+        // On error, try simpler query without filters
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('cars')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (!fallbackError) {
+          setCars(fallbackData || []);
+        }
         return;
       }
 
-      setCars(data || []);
+      // Filter out cars that don't belong to this user if no org_id
+      let filteredCars = data || [];
+      if (!organizationId) {
+        // Only show cars that belong to this user
+        filteredCars = filteredCars.filter(car => car.user_id === user.id);
+      }
+
+      setCars(filteredCars);
     } catch (error) {
       console.error('Exception loading cars:', error);
+      // Try simple user_id query as last resort
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: fallbackData } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          setCars(fallbackData || []);
+        }
+      } catch (e) {
+        console.error('Fallback query also failed:', e);
+      }
     } finally {
       setLoading(false);
     }
