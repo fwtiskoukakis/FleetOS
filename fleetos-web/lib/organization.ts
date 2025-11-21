@@ -8,12 +8,22 @@ import { supabase } from './supabase';
 /**
  * Get the current user's organization_id
  * Returns null if user doesn't belong to an organization
+ * @param userId Optional: The ID of the user. If not provided, it fetches the current authenticated user.
  */
-export async function getUserOrganizationId(): Promise<string | null> {
+export async function getOrganizationId(userId?: string): Promise<string | null> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    let currentUserId = userId;
+
+    if (!currentUserId) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        return null;
+      }
+      currentUserId = user.id;
+    }
+
+    if (!currentUserId) {
       return null;
     }
 
@@ -21,7 +31,7 @@ export async function getUserOrganizationId(): Promise<string | null> {
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('organization_id')
-      .eq('id', user.id)
+      .eq('id', currentUserId)
       .maybeSingle();
 
     if (userError) {
@@ -38,7 +48,7 @@ export async function getUserOrganizationId(): Promise<string | null> {
     const { data: contractData, error: contractError } = await supabase
       .from('contracts')
       .select('organization_id')
-      .eq('user_id', user.id)
+      .eq('user_id', currentUserId)
       .not('organization_id', 'is', null)
       .limit(1)
       .maybeSingle();
@@ -53,15 +63,16 @@ export async function getUserOrganizationId(): Promise<string | null> {
       await supabase
         .from('users')
         .update({ organization_id: contractData.organization_id })
-        .eq('id', user.id);
+        .eq('id', currentUserId);
       
       return contractData.organization_id;
     }
 
-    // Try to find from cars
+    // Try to find from cars (filtered by user_id)
     const { data: carData, error: carError } = await supabase
       .from('cars')
       .select('organization_id')
+      .eq('user_id', currentUserId)
       .not('organization_id', 'is', null)
       .limit(1)
       .maybeSingle();
@@ -71,7 +82,7 @@ export async function getUserOrganizationId(): Promise<string | null> {
       await supabase
         .from('users')
         .update({ organization_id: carData.organization_id })
-        .eq('id', user.id);
+        .eq('id', currentUserId);
       
       return carData.organization_id;
     }
@@ -81,6 +92,14 @@ export async function getUserOrganizationId(): Promise<string | null> {
     console.error('Exception getting user organization_id:', error);
     return null;
   }
+}
+
+/**
+ * Alias for getOrganizationId for backward compatibility
+ * @deprecated Use getOrganizationId instead
+ */
+export async function getUserOrganizationId(): Promise<string | null> {
+  return getOrganizationId();
 }
 
 /**
@@ -94,7 +113,7 @@ export async function buildOrganizationQuery<T>(
   const { data: { user } } = await supabase.auth.getUser();
   const userId = user?.id || null;
   
-  const organizationId = await getUserOrganizationId();
+  const organizationId = await getOrganizationId();
   
   let query = supabase.from(tableName).select(select);
 
