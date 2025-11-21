@@ -37,7 +37,7 @@ import {
   CheckCheck,
   ArrowDownCircle,
   ArrowUpCircle,
-  Warning,
+  AlertTriangle as Warning,
   Eye,
   Plus
 } from 'lucide-react';
