@@ -48,64 +48,63 @@ export default function FleetPage() {
         console.log('Organization ID after inference:', organizationId);
       }
 
-      // Build queries: Fetch cars by organization_id AND by user_id, then combine
-      // This ensures we see all cars belonging to the user, regardless of organization setup
-      const queries: Promise<any>[] = [];
-      
-      // Always fetch by user_id
-      queries.push(
-        supabase
+      // Fetch cars by user_id (always)
+      const { data: carsByUserId, error: errorByUserId } = await supabase
+        .from('cars')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      console.log('Cars by user_id:', carsByUserId?.length || 0);
+
+      // Also fetch by organization_id if available
+      let carsByOrgId: any[] = [];
+      if (organizationId) {
+        const { data: orgCars, error: errorByOrgId } = await supabase
           .from('cars')
           .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .then(result => ({ data: result.data, error: result.error }))
-      );
-      
-      // Also fetch by organization_id if available
-      if (organizationId) {
-        queries.push(
-          supabase
-            .from('cars')
-            .select('*')
-            .eq('organization_id', organizationId)
-            .order('created_at', { ascending: false })
-            .then(result => ({ data: result.data, error: result.error }))
-        );
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false });
+
+        if (errorByOrgId) {
+          console.error('Error loading cars by organization_id:', errorByOrgId);
+        } else {
+          carsByOrgId = orgCars || [];
+          console.log('Cars by organization_id:', carsByOrgId.length);
+        }
       }
-      
-      // Execute all queries in parallel
-      const results = await Promise.all(queries);
-      
+
       // Combine results and remove duplicates
       const allCars: any[] = [];
       const seenIds = new Set<string>();
-      
-      for (const result of results) {
-        if (result.error) {
-          console.error('Error in one of the queries:', result.error);
-          continue;
-        }
-        
-        if (result.data) {
-          for (const car of result.data) {
-            if (!seenIds.has(car.id)) {
-              seenIds.add(car.id);
-              allCars.push(car);
-            }
+
+      // Add cars by user_id
+      if (carsByUserId) {
+        for (const car of carsByUserId) {
+          if (!seenIds.has(car.id)) {
+            seenIds.add(car.id);
+            allCars.push(car);
           }
         }
       }
-      
+
+      // Add cars by organization_id
+      for (const car of carsByOrgId) {
+        if (!seenIds.has(car.id)) {
+          seenIds.add(car.id);
+          allCars.push(car);
+        }
+      }
+
       // Sort by created_at descending
       allCars.sort((a, b) => {
         const dateA = new Date(a.created_at || 0).getTime();
         const dateB = new Date(b.created_at || 0).getTime();
         return dateB - dateA;
       });
-      
+
       const data = allCars;
-      const error = null; // No error if we got here
+      const error = errorByUserId; // Use error from first query
 
       if (error) {
         console.error('Error loading cars:', error);
