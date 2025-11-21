@@ -256,25 +256,96 @@ export default function DashboardPage() {
         .eq('id', user.id)
         .maybeSingle();
 
-      const organizationId = userData?.organization_id;
+      let organizationId = userData?.organization_id;
 
-      // Build query with organization filter
-      let query = supabase
-        .from('cars')
-        .select('*')
-        .order('license_plate', { ascending: true });
-
-      // Filter by organization_id if available
-      // Note: cars table doesn't have user_id column, so we only filter by organization_id
+      // Strategy 1: Find cars by organization_id
+      let vehicles: any[] = [];
+      
       if (organizationId) {
-        query = query.eq('organization_id', organizationId);
+        const { data, error } = await supabase
+          .from('cars')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .order('license_plate', { ascending: true });
+        
+        if (error) throw error;
+        vehicles = data || [];
       }
-      // If no organization_id, we'll get all cars (will be filtered by RLS or empty)
 
-      const { data, error } = await query;
+      // Strategy 2: If no vehicles found, find through contracts
+      if (vehicles.length === 0) {
+        // Get organization_id from contracts
+        const { data: contractData } = await supabase
+          .from('contracts')
+          .select('organization_id, car_license_plate')
+          .eq('user_id', user.id)
+          .not('organization_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        
+        if (contractData?.organization_id) {
+          organizationId = contractData.organization_id;
+          // Update user's organization_id
+          await supabase
+            .from('users')
+            .update({ organization_id: organizationId })
+            .eq('id', user.id);
+          
+          // Get cars by organization_id
+          const { data, error } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .order('license_plate', { ascending: true });
+          
+          if (!error && data) {
+            vehicles = data;
+          }
+        } else {
+          // Get license plates from contracts and find those cars
+          const { data: userContracts } = await supabase
+            .from('contracts')
+            .select('car_license_plate')
+            .eq('user_id', user.id)
+            .not('car_license_plate', 'is', null);
+          
+          if (userContracts && userContracts.length > 0) {
+            const licensePlates = [...new Set(userContracts.map(c => c.car_license_plate).filter(Boolean))];
+            
+            const { data: carsByPlates } = await supabase
+              .from('cars')
+              .select('*')
+              .in('license_plate', licensePlates)
+              .order('license_plate', { ascending: true });
+            
+            if (carsByPlates) {
+              vehicles = carsByPlates;
+              
+              // If cars have organization_id, use it to get all cars
+              const carWithOrgId = carsByPlates.find(c => c.organization_id);
+              if (carWithOrgId?.organization_id) {
+                const { data: allOrgCars } = await supabase
+                  .from('cars')
+                  .select('*')
+                  .eq('organization_id', carWithOrgId.organization_id)
+                  .order('license_plate', { ascending: true });
+                
+                if (allOrgCars && allOrgCars.length > vehicles.length) {
+                  vehicles = allOrgCars;
+                  organizationId = carWithOrgId.organization_id;
+                  // Update user's organization_id
+                  await supabase
+                    .from('users')
+                    .update({ organization_id: organizationId })
+                    .eq('id', user.id);
+                }
+              }
+            }
+          }
+        }
+      }
 
-      if (error) throw error;
-      return data || [];
+      return vehicles;
     } catch (error) {
       console.error('Error loading vehicles:', error);
       return [];
