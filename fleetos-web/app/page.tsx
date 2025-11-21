@@ -352,7 +352,7 @@ export default function LandingPage() {
               <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-white">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
-                <li><Link href="/login" className="hover:text-white">Login</Link></Link>
+                <li><Link href="/login" className="hover:text-white">Login</Link></li>
               </ul>
             </div>
             <div>
