@@ -316,12 +316,11 @@ export default function DashboardPage() {
 
   async function loadActiveRentals(orgId: string) {
     try {
-      // Get all contracts for this organization (we need to check dates)
+      // Get all contracts for this organization - same as mobile app
       const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('pickup_date, dropoff_date, status')
-        .eq('organization_id', orgId)
-        .in('status', ['active', 'pending', 'completed']); // Include completed in case some are still active
+        .select('pickup_date, dropoff_date')
+        .eq('organization_id', orgId);
       
       if (error) {
         console.error('Error loading active rentals:', error);
@@ -329,12 +328,24 @@ export default function DashboardPage() {
       }
 
       // Count active rentals: contracts where current date is between pickup_date and dropoff_date
+      // Same logic as mobile app OrganizationService.getDashboardStats()
       const now = new Date();
       const activeCount = contracts?.filter(contract => {
-        const pickupDate = new Date(contract.pickup_date);
-        const dropoffDate = new Date(contract.dropoff_date);
-        // Active if current date is between pickup and dropoff
-        return pickupDate <= now && dropoffDate >= now;
+        try {
+          const pickupDate = new Date(contract.pickup_date);
+          const dropoffDate = new Date(contract.dropoff_date);
+          
+          // Check if dates are valid
+          if (isNaN(pickupDate.getTime()) || isNaN(dropoffDate.getTime())) {
+            return false;
+          }
+          
+          // Active if current date is between pickup and dropoff (inclusive)
+          return pickupDate <= now && dropoffDate >= now;
+        } catch (err) {
+          console.error('Error processing contract date:', err);
+          return false;
+        }
       }).length || 0;
       
       console.log('Active rentals for org', orgId, ':', activeCount);
@@ -349,8 +360,7 @@ export default function DashboardPage() {
       // Load all contracts (no organization filter) - same as mobile app
       const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('pickup_date, dropoff_date, status')
-        .in('status', ['active', 'pending', 'completed']); // Include completed in case some are still active
+        .select('pickup_date, dropoff_date');
       
       if (error) {
         console.error('Error loading active rentals (all):', error);
@@ -358,12 +368,24 @@ export default function DashboardPage() {
       }
 
       // Count active rentals: contracts where current date is between pickup_date and dropoff_date
+      // Same logic as mobile app OrganizationService.getDashboardStats()
       const now = new Date();
       const activeCount = contracts?.filter(contract => {
-        const pickupDate = new Date(contract.pickup_date);
-        const dropoffDate = new Date(contract.dropoff_date);
-        // Active if current date is between pickup and dropoff
-        return pickupDate <= now && dropoffDate >= now;
+        try {
+          const pickupDate = new Date(contract.pickup_date);
+          const dropoffDate = new Date(contract.dropoff_date);
+          
+          // Check if dates are valid
+          if (isNaN(pickupDate.getTime()) || isNaN(dropoffDate.getTime())) {
+            return false;
+          }
+          
+          // Active if current date is between pickup and dropoff (inclusive)
+          return pickupDate <= now && dropoffDate >= now;
+        } catch (err) {
+          console.error('Error processing contract date:', err);
+          return false;
+        }
       }).length || 0;
       
       console.log('Active rentals (all):', activeCount);
