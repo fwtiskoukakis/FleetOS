@@ -49,6 +49,7 @@ export default function DashboardPage() {
       }
 
       console.log('Loading dashboard for user:', authUser.email);
+      console.log('User ID:', authUser.id);
 
       // First, ensure user record exists (create if missing)
       const { data: existingUser, error: checkError } = await supabase
@@ -82,80 +83,98 @@ export default function DashboardPage() {
         }
       }
 
-      // Get user data with organization - same as mobile app
-      const { data: userData, error: userError } = await supabase
+      // Try to load user data - use simple select first
+      let userData: any = null;
+      let userError: any = null;
+
+      // First try simple select
+      const { data: simpleUserData, error: simpleError } = await supabase
         .from('users')
-        .select('*, organization:organizations(*)')
+        .select('id, email, name, organization_id')
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (userError) {
-        console.error('Error loading user data:', userError);
-        console.error('User ID:', authUser.id);
-        
-        // If user still doesn't exist, create minimal record
-        if (userError.code === 'PGRST116') {
-          console.log('User still not found, creating minimal record...');
-          const { error: createMinimalError } = await supabase
-            .from('users')
-            .insert({
-              id: authUser.id,
-              email: authUser.email || '',
-              name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-            });
+      if (simpleError) {
+        console.error('Error loading user (simple):', simpleError);
+        userError = simpleError;
+      } else if (simpleUserData) {
+        userData = simpleUserData;
+        console.log('User loaded (simple):', userData);
+      } else {
+        // User doesn't exist, create it
+        console.log('User not found, creating record...');
+        const { error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: authUser.id,
+            email: authUser.email || '',
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+          });
 
-          if (createMinimalError) {
-            console.error('Failed to create user record:', createMinimalError);
-            alert('Failed to initialize your account. Please contact support.');
-            return;
-          }
-
-          // Retry loading user data
-          const { data: retryUserData, error: retryError } = await supabase
+        if (createError) {
+          console.error('Failed to create user record:', createError);
+          // Try to continue anyway with minimal data
+          userData = {
+            id: authUser.id,
+            email: authUser.email || '',
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+            organization_id: null,
+          };
+        } else {
+          // Retry loading
+          const { data: retryData, error: retryError } = await supabase
             .from('users')
-            .select('*, organization:organizations(*)')
+            .select('id, email, name, organization_id')
             .eq('id', authUser.id)
             .maybeSingle();
 
           if (retryError) {
-            console.error('Error after retry:', retryError);
-            alert('Failed to load user data. Please refresh the page.');
-            return;
+            console.error('Error after creating user:', retryError);
+            // Use minimal data
+            userData = {
+              id: authUser.id,
+              email: authUser.email || '',
+              name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+              organization_id: null,
+            };
+          } else {
+            userData = retryData || {
+              id: authUser.id,
+              email: authUser.email || '',
+              name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+              organization_id: null,
+            };
           }
-
-          if (!retryUserData) {
-            alert('Failed to load user data. Please refresh the page.');
-            return;
-          }
-
-          setUser(retryUserData);
-          
-          if (!retryUserData.organization_id) {
-            // Show dashboard without organization - stats will be 0
-            console.log('User has no organization - showing dashboard with 0 stats');
-            return;
-          }
-
-          // Continue with organization_id
-          const orgId = retryUserData.organization_id;
-          console.log('Loading stats for organization:', orgId);
-          await Promise.all([
-            loadCarCount(orgId),
-            loadActiveRentals(orgId),
-            loadCustomerCount(orgId),
-            loadMonthlyRevenue(orgId),
-          ]);
-          return;
-        } else {
-          alert('Failed to load user data. Please refresh the page.');
-          return;
         }
       }
 
+      // If we still don't have userData, use minimal data
       if (!userData) {
-        console.error('User data is null after query');
-        alert('Failed to load user data. Please refresh the page.');
-        return;
+        console.log('Using minimal user data');
+        userData = {
+          id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+          organization_id: null,
+        };
+      }
+
+      // Try to load organization if organization_id exists
+      if (userData.organization_id) {
+        try {
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('*')
+            .eq('id', userData.organization_id)
+            .maybeSingle();
+          
+          if (orgData) {
+            userData.organization = orgData;
+          }
+        } catch (orgError) {
+          console.error('Error loading organization:', orgError);
+          // Continue without organization
+        }
       }
 
       console.log('User data loaded:', userData);
