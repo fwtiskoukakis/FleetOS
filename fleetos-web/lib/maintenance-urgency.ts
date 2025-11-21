@@ -148,3 +148,38 @@ export function calculateServiceUrgency(
   };
 }
 
+/**
+ * Get the most urgent maintenance item from multiple urgency results
+ */
+export function getMostUrgent(...urgencies: UrgencyResult[]): UrgencyResult {
+  if (urgencies.length === 0) {
+    return {
+      level: 'ok',
+      color: '#8E8E93',
+      daysRemaining: Infinity,
+      label: 'OK',
+    };
+  }
+
+  const priorityMap: Record<UrgencyLevel, number> = {
+    expired: 0,
+    critical: 1,
+    warning: 2,
+    soon: 3,
+    ok: 4,
+  };
+
+  return urgencies.reduce((mostUrgent, current) => {
+    if (priorityMap[current.level] < priorityMap[mostUrgent.level]) {
+      return current;
+    }
+    if (
+      priorityMap[current.level] === priorityMap[mostUrgent.level] &&
+      current.daysRemaining < mostUrgent.daysRemaining
+    ) {
+      return current;
+    }
+    return mostUrgent;
+  });
+}
+
