@@ -15,6 +15,7 @@ export default function CustomerDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [error, setError] = useState('');
   const [customer, setCustomer] = useState<any>(null);
   const [formData, setFormData] = useState({
     full_name: '',
