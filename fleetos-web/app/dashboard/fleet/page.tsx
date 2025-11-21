@@ -30,7 +30,21 @@ export default function FleetPage() {
         return;
       }
 
-      console.log('Loading cars for user:', user.id, user.email);
+      console.log('=== LOADING CARS ===');
+      console.log('User ID:', user.id);
+      console.log('User Email:', user.email);
+
+      // First, try to get ALL cars without filters to see what's available
+      // (This is just for debugging - we'll remove this in production)
+      const { data: allCarsCheck, error: allCarsError } = await supabase
+        .from('cars')
+        .select('id, make, model, license_plate, user_id, organization_id')
+        .limit(20);
+      
+      console.log('Sample cars in DB (first 20):', allCarsCheck);
+      if (allCarsError) {
+        console.error('Error fetching sample cars:', allCarsError);
+      }
 
       // Try to get organization_id from users table first
       const { data: userData } = await supabase
@@ -48,7 +62,7 @@ export default function FleetPage() {
         console.log('Organization ID after inference:', organizationId);
       }
 
-      // Fetch cars by user_id (always)
+      // PRIMARY QUERY: Fetch cars by user_id (this is how mobile app stores them)
       const { data: carsByUserId, error: errorByUserId } = await supabase
         .from('cars')
         .select('*')
@@ -56,8 +70,20 @@ export default function FleetPage() {
         .order('created_at', { ascending: false });
 
       console.log('Cars by user_id:', carsByUserId?.length || 0);
+      if (errorByUserId) {
+        console.error('Error loading cars by user_id:', errorByUserId);
+      } else if (carsByUserId && carsByUserId.length > 0) {
+        console.log('Sample car by user_id:', {
+          id: carsByUserId[0].id,
+          make: carsByUserId[0].make,
+          model: carsByUserId[0].model,
+          license_plate: carsByUserId[0].license_plate,
+          user_id: carsByUserId[0].user_id,
+          organization_id: carsByUserId[0].organization_id,
+        });
+      }
 
-      // Also fetch by organization_id if available
+      // SECONDARY QUERY: Also fetch by organization_id if available
       let carsByOrgId: any[] = [];
       if (organizationId) {
         const { data: orgCars, error: errorByOrgId } = await supabase
@@ -78,8 +104,8 @@ export default function FleetPage() {
       const allCars: any[] = [];
       const seenIds = new Set<string>();
 
-      // Add cars by user_id
-      if (carsByUserId) {
+      // Add cars by user_id first (they take priority)
+      if (carsByUserId && !errorByUserId) {
         for (const car of carsByUserId) {
           if (!seenIds.has(car.id)) {
             seenIds.add(car.id);
@@ -88,11 +114,44 @@ export default function FleetPage() {
         }
       }
 
-      // Add cars by organization_id
+      // Add cars by organization_id (if not already included)
       for (const car of carsByOrgId) {
         if (!seenIds.has(car.id)) {
           seenIds.add(car.id);
           allCars.push(car);
+        }
+      }
+
+      // If we still have no cars, try a broader query without user_id filter
+      // This might be needed if cars were created with different user_id
+      if (allCars.length === 0 && allCarsCheck && allCarsCheck.length > 0) {
+        console.warn('No cars found by user_id or organization_id. Checking all cars...');
+        
+        // Try to find cars by email (if cars have email stored)
+        // Or try to match by organization from other cars
+        const otherCar = allCarsCheck[0];
+        if (otherCar.organization_id && otherCar.organization_id !== organizationId) {
+          console.log('Found cars with different organization_id:', otherCar.organization_id);
+          // Try to get those cars
+          const { data: otherOrgCars } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('organization_id', otherCar.organization_id)
+            .order('created_at', { ascending: false });
+          
+          if (otherOrgCars && otherOrgCars.length > 0) {
+            console.log('Found', otherOrgCars.length, 'cars with different organization_id');
+            // Update user's organization_id to match
+            await supabase
+              .from('users')
+              .update({ organization_id: otherCar.organization_id })
+              .eq('id', user.id);
+            
+            // Use those cars
+            setCars(otherOrgCars);
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -103,67 +162,29 @@ export default function FleetPage() {
         return dateB - dateA;
       });
 
-      const data = allCars;
-      const error = errorByUserId; // Use error from first query
-
-      if (error) {
-        console.error('Error loading cars:', error);
-        // On error, try simpler query by user_id only
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('cars')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        
-        if (!fallbackError && fallbackData) {
-          console.log('Fallback query returned', fallbackData.length, 'cars');
-          setCars(fallbackData || []);
-          
-          // If we found cars but no organization_id, try to set it from the first car
-          if (fallbackData.length > 0 && !organizationId && fallbackData[0].organization_id) {
-            console.log('Found cars with organization_id, updating user...');
-            await supabase
-              .from('users')
-              .update({ organization_id: fallbackData[0].organization_id })
-              .eq('id', user.id);
-          }
-        } else {
-          console.error('Fallback query also failed:', fallbackError);
-          setCars([]);
-        }
-        return;
-      }
-
-      console.log('Loaded', data?.length || 0, 'cars');
+      console.log('Final cars count:', allCars.length);
       
       // If we found cars but no organization_id, try to set it from the first car
-      if (data && data.length > 0 && !organizationId && data[0].organization_id) {
+      if (allCars.length > 0 && !organizationId && allCars[0].organization_id) {
         console.log('Found cars with organization_id, updating user...');
         await supabase
           .from('users')
-          .update({ organization_id: data[0].organization_id })
+          .update({ organization_id: allCars[0].organization_id })
           .eq('id', user.id);
       }
       
-      setCars(data || []);
+      setCars(allCars);
+      
+      if (allCars.length === 0) {
+        console.warn('⚠️ NO CARS FOUND. Debug info:');
+        console.log('- User ID:', user.id);
+        console.log('- Organization ID:', organizationId);
+        console.log('- Cars by user_id error:', errorByUserId);
+        console.log('- Sample cars in DB:', allCarsCheck?.slice(0, 5));
+      }
     } catch (error) {
       console.error('Exception loading cars:', error);
-      // Try simple user_id query as last resort
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: fallbackData } = await supabase
-            .from('cars')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-          console.log('Last resort query returned', fallbackData?.length || 0, 'cars');
-          setCars(fallbackData || []);
-        }
-      } catch (e) {
-        console.error('Fallback query also failed:', e);
-        setCars([]);
-      }
+      setCars([]);
     } finally {
       setLoading(false);
     }
