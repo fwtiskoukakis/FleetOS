@@ -62,15 +62,38 @@ export default function FleetPage() {
         console.log('Organization ID after inference:', organizationId);
       }
 
-      // Fetch cars by organization_id (this is the only reliable way since user_id column doesn't exist)
+      // Since cars table doesn't have user_id, we need to find cars through contracts
+      // Strategy: Find cars used in user's contracts, then get their organization_id
       let allCars: any[] = [];
+      let foundOrganizationId = organizationId;
       
-      if (organizationId) {
-        // Query by organization_id
+      // First, try to find organization_id from contracts
+      if (!foundOrganizationId) {
+        const { data: userContracts } = await supabase
+          .from('contracts')
+          .select('organization_id, car_license_plate')
+          .eq('user_id', user.id)
+          .not('organization_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        
+        if (userContracts?.organization_id) {
+          foundOrganizationId = userContracts.organization_id;
+          console.log('Found organization_id from contracts:', foundOrganizationId);
+          // Update user's organization_id
+          await supabase
+            .from('users')
+            .update({ organization_id: foundOrganizationId })
+            .eq('id', user.id);
+        }
+      }
+
+      // Strategy 1: Find cars by organization_id (if we have it)
+      if (foundOrganizationId) {
         const { data: orgCars, error: errorByOrgId } = await supabase
           .from('cars')
           .select('*')
-          .eq('organization_id', organizationId)
+          .eq('organization_id', foundOrganizationId)
           .order('created_at', { ascending: false });
 
         if (errorByOrgId) {
@@ -81,16 +104,78 @@ export default function FleetPage() {
         }
       }
 
-      // If no cars found by organization_id, check if there are cars with organization_id in DB
-      // This might happen if user's organization_id isn't set but cars have it
-      if (allCars.length === 0 && allCarsCheck && allCarsCheck.length > 0) {
-        console.warn('No cars found by organization_id. Checking all cars...');
+      // Strategy 2: If no cars found by organization_id, find cars through contracts (by license_plate)
+      if (allCars.length === 0) {
+        console.log('No cars found by organization_id. Finding cars through contracts...');
         
-        // Try to find cars with any organization_id
+        // Get all unique license plates from user's contracts
+        const { data: userContracts } = await supabase
+          .from('contracts')
+          .select('car_license_plate, organization_id')
+          .eq('user_id', user.id)
+          .not('car_license_plate', 'is', null);
+        
+        if (userContracts && userContracts.length > 0) {
+          const licensePlates = [...new Set(userContracts.map(c => c.car_license_plate).filter(Boolean))];
+          console.log('Found license plates from contracts:', licensePlates);
+          
+          // Try to find organization_id from contracts
+          const contractWithOrgId = userContracts.find(c => c.organization_id);
+          if (contractWithOrgId?.organization_id && !foundOrganizationId) {
+            foundOrganizationId = contractWithOrgId.organization_id;
+            console.log('Setting organization_id from contract:', foundOrganizationId);
+            await supabase
+              .from('users')
+              .update({ organization_id: foundOrganizationId })
+              .eq('id', user.id);
+          }
+          
+          // Get cars by license plates
+          if (licensePlates.length > 0) {
+            const { data: carsByPlates } = await supabase
+              .from('cars')
+              .select('*')
+              .in('license_plate', licensePlates)
+              .order('created_at', { ascending: false });
+            
+            if (carsByPlates && carsByPlates.length > 0) {
+              allCars = carsByPlates;
+              console.log('Found', allCars.length, 'cars by license plates from contracts');
+              
+              // If cars have organization_id, use it to get all cars from that organization
+              const carWithOrgId = carsByPlates.find(c => c.organization_id);
+              if (carWithOrgId?.organization_id && carWithOrgId.organization_id !== foundOrganizationId) {
+                console.log('Found cars with organization_id:', carWithOrgId.organization_id);
+                const { data: allOrgCars } = await supabase
+                  .from('cars')
+                  .select('*')
+                  .eq('organization_id', carWithOrgId.organization_id)
+                  .order('created_at', { ascending: false });
+                
+                if (allOrgCars && allOrgCars.length > allCars.length) {
+                  allCars = allOrgCars;
+                  foundOrganizationId = carWithOrgId.organization_id;
+                  // Update user's organization_id
+                  await supabase
+                    .from('users')
+                    .update({ organization_id: foundOrganizationId })
+                    .eq('id', user.id);
+                  console.log('Updated to show all cars from organization:', foundOrganizationId);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Strategy 3: If still no cars, check all cars in DB and try to infer organization
+      if (allCars.length === 0 && allCarsCheck && allCarsCheck.length > 0) {
+        console.warn('Still no cars found. Checking if cars have organization_id...');
+        
+        // Find cars with organization_id
         const carWithOrgId = allCarsCheck.find((c: any) => c.organization_id);
         if (carWithOrgId && carWithOrgId.organization_id) {
           console.log('Found cars with organization_id:', carWithOrgId.organization_id);
-          // Try to get those cars
           const { data: otherOrgCars } = await supabase
             .from('cars')
             .select('*')
@@ -98,14 +183,26 @@ export default function FleetPage() {
             .order('created_at', { ascending: false });
           
           if (otherOrgCars && otherOrgCars.length > 0) {
-            console.log('Found', otherOrgCars.length, 'cars with organization_id:', carWithOrgId.organization_id);
-            // Update user's organization_id to match
+            allCars = otherOrgCars;
+            foundOrganizationId = carWithOrgId.organization_id;
+            // Update user's organization_id
             await supabase
               .from('users')
-              .update({ organization_id: carWithOrgId.organization_id })
+              .update({ organization_id: foundOrganizationId })
               .eq('id', user.id);
-            
-            allCars = otherOrgCars;
+            console.log('Using cars with organization_id:', foundOrganizationId);
+          }
+        } else {
+          // Last resort: show all cars (if RLS allows or if no filtering)
+          console.warn('No organization_id found. Showing all cars (may be filtered by RLS)');
+          const { data: allCarsData } = await supabase
+            .from('cars')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          if (allCarsData) {
+            allCars = allCarsData;
+            console.log('Showing all cars (no filter):', allCars.length);
           }
         }
       }
