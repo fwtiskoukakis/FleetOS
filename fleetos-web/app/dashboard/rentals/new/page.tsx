@@ -236,10 +236,6 @@ export default function NewContractPage() {
   }
   
   async function handleSaveContract() {
-    if (!validateContract()) {
-      return;
-    }
-    
     setSaving(true);
     setError('');
     setSuccess(false);
@@ -384,7 +380,12 @@ export default function NewContractPage() {
           </div>
         )}
         
-        <form onSubmit={(e) => { e.preventDefault(); handleSaveContract(); }} className="space-y-6">
+        <form onSubmit={async (e) => { 
+          e.preventDefault(); 
+          if (validateContract()) {
+            await handleSaveContract();
+          }
+        }} className="space-y-6">
           {/* 1. Renter Info Section */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-2 mb-4">
