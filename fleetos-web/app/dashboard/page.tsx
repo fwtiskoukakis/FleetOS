@@ -468,49 +468,31 @@ export default function DashboardPage() {
 
   async function loadMonthlyRevenue(orgId: string) {
     try {
-      // Get first day of current month
+      // Get current month date range - same as mobile app OrganizationService.getDashboardStats()
       const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       
-      // Load completed contracts for this month
-      const { data: completedContracts, error: completedError } = await supabase
+      // Load all contracts for this organization
+      const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('total_price, total_cost, created_at')
-        .eq('organization_id', orgId)
-        .eq('status', 'completed')
-        .gte('created_at', firstDayOfMonth.toISOString());
+        .select('total_cost, created_at')
+        .eq('organization_id', orgId);
 
-      // Also get active contracts that started this month
-      const { data: activeContracts, error: activeError } = await supabase
-        .from('contracts')
-        .select('total_price, total_cost, created_at, pickup_date')
-        .eq('organization_id', orgId)
-        .in('status', ['active', 'pending'])
-        .gte('pickup_date', firstDayOfMonth.toISOString().split('T')[0]);
-
-      if (completedError) {
-        console.error('Error loading completed contracts:', completedError);
-      }
-      if (activeError) {
-        console.error('Error loading active contracts:', activeError);
+      if (error) {
+        console.error('Error loading contracts for revenue:', error);
+        return;
       }
 
-      // Calculate revenue from completed contracts
-      const completedRevenue = completedContracts?.reduce((sum, contract) => {
-        const price = contract.total_cost || contract.total_price || 0;
-        return sum + price;
-      }, 0) || 0;
-
-      // Calculate revenue from active contracts (they've been paid for)
-      const activeRevenue = activeContracts?.reduce((sum, contract) => {
-        const price = contract.total_cost || contract.total_price || 0;
-        return sum + price;
-      }, 0) || 0;
-
-      const totalRevenue = completedRevenue + activeRevenue;
+      // Filter contracts created this month and sum total_cost
+      // Same logic as mobile app OrganizationService.getDashboardStats()
+      const monthlyRevenue = contracts?.filter(contract => {
+        const contractDate = new Date(contract.created_at);
+        return contractDate >= startOfMonth && contractDate <= endOfMonth;
+      }).reduce((sum, contract) => sum + (contract.total_cost || 0), 0) || 0;
       
-      console.log('Monthly revenue for org', orgId, ':', totalRevenue, '(completed:', completedRevenue, 'active:', activeRevenue, ')');
-      setStats(prev => ({ ...prev, monthlyRevenue: totalRevenue }));
+      console.log('Monthly revenue for org', orgId, ':', monthlyRevenue);
+      setStats(prev => ({ ...prev, monthlyRevenue }));
     } catch (error) {
       console.error('Exception loading monthly revenue:', error);
     }
@@ -518,48 +500,30 @@ export default function DashboardPage() {
 
   async function loadMonthlyRevenueAll() {
     try {
-      // Get first day of current month
+      // Get current month date range - same as mobile app OrganizationService.getDashboardStats()
       const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       
-      // Load all contracts for this month (no organization filter) - same as mobile app
-      // Check both status = 'completed' and also active/pending contracts that might have revenue
-      const { data: completedContracts, error: completedError } = await supabase
+      // Load all contracts (no organization filter) - same as mobile app
+      const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('total_price, total_cost, created_at')
-        .eq('status', 'completed')
-        .gte('created_at', firstDayOfMonth.toISOString());
+        .select('total_cost, created_at');
 
-      // Also get active contracts that started this month
-      const { data: activeContracts, error: activeError } = await supabase
-        .from('contracts')
-        .select('total_price, total_cost, created_at, pickup_date')
-        .in('status', ['active', 'pending'])
-        .gte('pickup_date', firstDayOfMonth.toISOString().split('T')[0]);
-
-      if (completedError) {
-        console.error('Error loading completed contracts:', completedError);
-      }
-      if (activeError) {
-        console.error('Error loading active contracts:', activeError);
+      if (error) {
+        console.error('Error loading contracts for revenue (all):', error);
+        return;
       }
 
-      // Calculate revenue from completed contracts
-      const completedRevenue = completedContracts?.reduce((sum, contract) => {
-        const price = contract.total_cost || contract.total_price || 0;
-        return sum + price;
-      }, 0) || 0;
-
-      // Calculate revenue from active contracts (they've been paid for)
-      const activeRevenue = activeContracts?.reduce((sum, contract) => {
-        const price = contract.total_cost || contract.total_price || 0;
-        return sum + price;
-      }, 0) || 0;
-
-      const totalRevenue = completedRevenue + activeRevenue;
+      // Filter contracts created this month and sum total_cost
+      // Same logic as mobile app OrganizationService.getDashboardStats()
+      const monthlyRevenue = contracts?.filter(contract => {
+        const contractDate = new Date(contract.created_at);
+        return contractDate >= startOfMonth && contractDate <= endOfMonth;
+      }).reduce((sum, contract) => sum + (contract.total_cost || 0), 0) || 0;
       
-      console.log('Monthly revenue (all):', totalRevenue, '(completed:', completedRevenue, 'active:', activeRevenue, ')');
-      setStats(prev => ({ ...prev, monthlyRevenue: totalRevenue }));
+      console.log('Monthly revenue (all):', monthlyRevenue);
+      setStats(prev => ({ ...prev, monthlyRevenue }));
     } catch (error) {
       console.error('Exception loading monthly revenue (all):', error);
     }
