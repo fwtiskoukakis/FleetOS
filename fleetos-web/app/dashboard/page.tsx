@@ -264,13 +264,12 @@ export default function DashboardPage() {
         .select('*')
         .order('license_plate', { ascending: true });
 
-      // Filter by organization_id if available, otherwise filter by user_id
+      // Filter by organization_id if available
+      // Note: cars table doesn't have user_id column, so we only filter by organization_id
       if (organizationId) {
         query = query.eq('organization_id', organizationId);
-      } else {
-        // Fallback to user_id if no organization_id
-        query = query.eq('user_id', user.id);
       }
+      // If no organization_id, we'll get all cars (will be filtered by RLS or empty)
 
       const { data, error } = await query;
 
