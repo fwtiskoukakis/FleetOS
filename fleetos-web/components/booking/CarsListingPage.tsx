@@ -88,7 +88,7 @@ export default function CarsListingPage({
         <div className="flex gap-8">
           {/* Filters Sidebar */}
           <aside className="w-64 flex-shrink-0 hidden lg:block">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" sticky top-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-4">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Settings2 size={20} />
                 Φίλτρα

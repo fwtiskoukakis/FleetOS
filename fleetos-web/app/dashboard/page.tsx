@@ -174,7 +174,7 @@ export default function DashboardPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Cars */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Total Cars</h3>
               <Car className="w-5 h-5 text-blue-600" />
@@ -184,7 +184,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Active Rentals */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Active Rentals</h3>
               <Activity className="w-5 h-5 text-green-600" />
@@ -194,7 +194,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Total Customers */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Customers</h3>
               <Users className="w-5 h-5 text-purple-600" />
@@ -204,7 +204,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Monthly Revenue */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Monthly Revenue</h3>
               <DollarSign className="w-5 h-5 text-green-600" />

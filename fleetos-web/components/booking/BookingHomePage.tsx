@@ -105,7 +105,7 @@ export default function BookingHomePage({
           </div>
 
           {/* Search Form */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" bg-white shadow-xl">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6">
             <div className="space-y-6">
               {/* Pickup Location */}
               <div>
