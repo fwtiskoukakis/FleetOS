@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Clock, ChevronRight, Car } from 'lucide-react';
+import FleetOSLogo from '@/components/FleetOSLogo';
 import { createClientComponentClient } from '@/lib/supabase';
 import type { Organization, Location, BookingDesignSettings } from '@/lib/supabase';
 
@@ -76,12 +77,7 @@ export default function BookingHomePage({
               />
             ) : (
               <div className="flex items-center gap-2">
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Car className="w-6 h-6 text-white" />
-                </div>
+                <FleetOSLogo variant="icon" size={40} />
                 <span className="text-xl font-bold text-gray-900">{companyName}</span>
               </div>
             )}

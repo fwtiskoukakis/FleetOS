@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Car, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
+import FleetOSLogo from '@/components/FleetOSLogo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,22 +20,27 @@ export default function LoginPage() {
     setError('');
 
     try {
+      // Normalize email - same as mobile app
+      const normalizedEmail = email.trim().toLowerCase();
+      
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Provide better error messages
+        let errorMessage = authError.message;
+        if (authError.message.includes('Email not confirmed')) {
+          errorMessage = 'Please confirm your email before signing in. Check your inbox.';
+        } else if (authError.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        }
+        throw new Error(errorMessage);
+      }
 
       if (data.user) {
-        // Get user's organization
-        const { data: userData } = await supabase
-          .from('users')
-          .select('organization_id, role')
-          .eq('id', data.user.id)
-          .single();
-
-        // Redirect to dashboard
+        // Redirect to dashboard - same as mobile app (no users table check)
         router.push('/dashboard');
         router.refresh();
       }
@@ -50,11 +56,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Logo & Header */}
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Car className="w-7 h-7 text-white" />
-            </div>
-            <span className="text-3xl font-bold text-gray-900">FleetOS</span>
+          <Link href="/" className="inline-flex items-center mb-4">
+            <FleetOSLogo variant="horizontal-light" size={180} showText={true} />
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">Sign in to your account</h2>
           <p className="mt-2 text-sm text-gray-600">
