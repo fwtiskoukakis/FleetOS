@@ -655,17 +655,33 @@ export default function NewContractPage() {
                   </>
                 )}
               </div>
+              
+              {/* Total Cost - moved here from separate Pricing section to match mobile app */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Cost (€) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={rentalPeriod.totalCost || ''}
+                  onChange={(e) => setRentalPeriod({ ...rentalPeriod, totalCost: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                  placeholder="0.00"
+                />
+              </div>
             </div>
           </div>
           
-          {/* 3. Vehicle Selection Section */}
+          {/* 3. Vehicle & Condition Section - Combined to match mobile app */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Car className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-bold text-gray-900">3. Vehicle Information</h2>
+              <h2 className="text-lg font-bold text-gray-900">3. Vehicle & Condition</h2>
             </div>
             
             <div className="space-y-4">
+              {/* Vehicle Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Vehicle *</label>
                 <button
@@ -684,211 +700,82 @@ export default function NewContractPage() {
                 </button>
               </div>
               
-              {selectedCarId && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Make/Model</label>
-                      <input
-                        type="text"
-                        value={carInfo.makeModel}
-                        onChange={(e) => setCarInfo({ ...carInfo, makeModel: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., Toyota Yaris"
-                      />
+              {/* Fuel Level and Mileage */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Level (0-8) *</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-600 transition-all duration-300"
+                          style={{ width: `${(carCondition.fuelLevel / 8) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 w-12 text-right">
+                        {carCondition.fuelLevel}/8
+                      </span>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">License Plate *</label>
-                      <input
-                        type="text"
-                        required
-                        value={carInfo.licensePlate}
-                        onChange={(e) => setCarInfo({ ...carInfo, licensePlate: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="ABC-1234"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                      <input
-                        type="number"
-                        value={carInfo.year || ''}
-                        onChange={(e) => setCarInfo({ ...carInfo, year: parseInt(e.target.value) || undefined })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="2023"
-                        min="1900"
-                        max={new Date().getFullYear() + 1}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Mileage</label>
-                      <input
-                        type="number"
-                        value={carCondition.mileage || ''}
-                        onChange={(e) => setCarCondition({ ...carCondition, mileage: parseInt(e.target.value) || 0 })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="0"
-                        min="0"
-                      />
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setCarCondition({ ...carCondition, fuelLevel: level })}
+                          className={`flex-1 px-2 py-1 text-sm font-medium rounded transition-colors ${
+                            carCondition.fuelLevel >= level
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-          
-          {/* 4. Pricing Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-bold text-gray-900">4. Pricing</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deposit Amount</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={rentalPeriod.depositAmount || ''}
-                  onChange={(e) => setRentalPeriod({ ...rentalPeriod, depositAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Cost</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={rentalPeriod.insuranceCost || ''}
-                  onChange={(e) => setRentalPeriod({ ...rentalPeriod, insuranceCost: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Cost *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={rentalPeriod.totalCost || ''}
-                  onChange={(e) => setRentalPeriod({ ...rentalPeriod, totalCost: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-            
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Rental Period:</strong> {Math.ceil((new Date(rentalPeriod.dropoffDate).getTime() - new Date(rentalPeriod.pickupDate).getTime()) / (1000 * 60 * 60 * 24)) || 1} day(s)
-              </p>
-            </div>
-          </div>
-          
-          {/* 5. Car Condition Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Car className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-bold text-gray-900">5. Car Condition</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Level (0-8) *</label>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-600 transition-all duration-300"
-                        style={{ width: `${(carCondition.fuelLevel / 8) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 w-12 text-right">
-                      {carCondition.fuelLevel}/8
-                    </span>
-                  </div>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => setCarCondition({ ...carCondition, fuelLevel: level })}
-                        className={`flex-1 px-2 py-1 text-sm font-medium rounded transition-colors ${
-                          carCondition.fuelLevel >= level
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mileage *</label>
+                  <input
+                    type="number"
+                    required
+                    value={carCondition.mileage || ''}
+                    onChange={(e) => setCarCondition({ ...carCondition, mileage: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="50000"
+                    min="0"
+                  />
                 </div>
               </div>
               
+              {/* Insurance Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Type</label>
-                <select
-                  value={carCondition.insuranceType}
-                  onChange={(e) => setCarCondition({ ...carCondition, insuranceType: e.target.value as 'basic' | 'full' })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="basic">Basic</option>
-                  <option value="full">Full</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Exterior Condition</label>
-                <select
-                  value={carCondition.exteriorCondition}
-                  onChange={(e) => setCarCondition({ ...carCondition, exteriorCondition: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="excellent">Excellent</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="poor">Poor</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Interior Condition</label>
-                <select
-                  value={carCondition.interiorCondition}
-                  onChange={(e) => setCarCondition({ ...carCondition, interiorCondition: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="excellent">Excellent</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="poor">Poor</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mechanical Condition</label>
-                <select
-                  value={carCondition.mechanicalCondition}
-                  onChange={(e) => setCarCondition({ ...carCondition, mechanicalCondition: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="excellent">Excellent</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="poor">Poor</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Type *</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCarCondition({ ...carCondition, insuranceType: 'basic' })}
+                    className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors ${
+                      carCondition.insuranceType === 'basic'
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    Basic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCarCondition({ ...carCondition, insuranceType: 'full' })}
+                    className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors ${
+                      carCondition.insuranceType === 'full'
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    Full
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -897,7 +784,7 @@ export default function NewContractPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Car className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-bold text-gray-900">4. Car Diagram - Damage Points</h2>
+              <h2 className="text-lg font-bold text-gray-900">4. Damage Points</h2>
             </div>
             
             <CarDiagram
