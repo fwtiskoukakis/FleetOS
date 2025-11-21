@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Globe, MapPin, Tag, Shield, CreditCard, Settings, Plus } from 'lucide-react';
+import { getOrganizationId } from '@/lib/organization';
+import { 
+  Globe, MapPin, Tag, Shield, CreditCard, Settings, Plus, 
+  Car, Calendar, Palette, BarChart3, Eye, ArrowRight 
+} from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 
 export default function BookOnlinePage() {
@@ -17,6 +21,9 @@ export default function BookOnlinePage() {
     insuranceTypes: 0,
     paymentMethods: 0,
     bookings: 0,
+    activeBookings: 0,
+    availableCars: 0,
+    monthlyRevenue: 0,
   });
 
   useEffect(() => {
@@ -27,14 +34,61 @@ export default function BookOnlinePage() {
     try {
       setLoading(true);
       
-      const [locationsRes, categoriesRes, extrasRes, insuranceRes, paymentsRes, bookingsRes] = await Promise.all([
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const organizationId = await getOrganizationId(user.id);
+      
+      // Build queries with organization filter
+      const queries = [
         supabase.from('locations').select('id', { count: 'exact', head: true }),
         supabase.from('car_categories').select('id', { count: 'exact', head: true }),
         supabase.from('extra_options').select('id', { count: 'exact', head: true }),
         supabase.from('insurance_types').select('id', { count: 'exact', head: true }),
         supabase.from('payment_methods').select('id', { count: 'exact', head: true }),
-        supabase.from('online_bookings').select('id', { count: 'exact', head: true }),
-      ]);
+      ];
+
+      // Bookings query with organization filter
+      let bookingsQuery = supabase.from('online_bookings').select('id, total_cost, pickup_date, dropoff_date', { count: 'exact' });
+      if (organizationId) {
+        bookingsQuery = bookingsQuery.eq('organization_id', organizationId);
+      }
+      
+      queries.push(bookingsQuery);
+
+      // Available cars query
+      let carsQuery = supabase.from('booking_cars').select('id', { count: 'exact', head: true }).eq('is_available_for_booking', true).eq('is_active', true);
+      if (organizationId) {
+        carsQuery = carsQuery.eq('organization_id', organizationId);
+      }
+      queries.push(carsQuery);
+
+      const [
+        locationsRes, categoriesRes, extrasRes, insuranceRes, paymentsRes, 
+        bookingsRes, carsRes
+      ] = await Promise.all(queries);
+
+      // Calculate active bookings and monthly revenue
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      const activeBookings = bookingsRes.data?.filter((b: any) => {
+        const pickup = new Date(b.pickup_date);
+        const dropoff = new Date(b.dropoff_date);
+        return pickup <= now && dropoff >= now;
+      }).length || 0;
+
+      const monthlyRevenue = bookingsRes.data?.reduce((sum: number, b: any) => {
+        const bookingDate = new Date(b.pickup_date || b.created_at);
+        if (bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear) {
+          return sum + (parseFloat(b.total_cost) || 0);
+        }
+        return sum;
+      }, 0) || 0;
 
       setStats({
         locations: locationsRes.count || 0,
@@ -43,6 +97,9 @@ export default function BookOnlinePage() {
         insuranceTypes: insuranceRes.count || 0,
         paymentMethods: paymentsRes.count || 0,
         bookings: bookingsRes.count || 0,
+        activeBookings,
+        availableCars: carsRes.count || 0,
+        monthlyRevenue,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -53,59 +110,74 @@ export default function BookOnlinePage() {
 
   const menuItems = [
     {
-      title: 'Locations',
-      description: 'Manage pickup and dropoff locations',
+      title: 'Τοποθεσίες',
+      subtitle: 'Διαχείριση σημείων παραλαβής/παράδοσης',
       icon: MapPin,
-      count: stats.locations,
       href: '/dashboard/book-online/locations',
-      color: 'blue',
+      color: '#3b82f6',
     },
     {
-      title: 'Car Categories',
-      description: 'Manage vehicle categories and pricing',
+      title: 'Κατηγορίες Οχημάτων',
+      subtitle: 'Δημιουργία και επεξεργασία κατηγοριών',
       icon: Tag,
-      count: stats.categories,
       href: '/dashboard/book-online/categories',
-      color: 'green',
+      color: '#8b5cf6',
     },
     {
-      title: 'Extra Options',
-      description: 'Manage add-ons and extras',
+      title: 'Αυτοκίνητα',
+      subtitle: 'Διαχείριση οχημάτων και φωτογραφιών',
+      icon: Car,
+      href: '/dashboard/book-online/cars',
+      color: '#10b981',
+    },
+    {
+      title: 'Τιμολόγηση',
+      subtitle: 'Calendar τιμών με drag-to-select',
+      icon: Calendar,
+      href: '/dashboard/book-online/pricing',
+      color: '#f59e0b',
+    },
+    {
+      title: 'Πρόσθετα',
+      subtitle: 'GPS, παιδικό κάθισμα, επιπλέον οδηγός',
       icon: Plus,
-      count: stats.extras,
       href: '/dashboard/book-online/extras',
-      color: 'purple',
+      color: '#06b6d4',
     },
     {
-      title: 'Insurance Types',
-      description: 'Manage insurance options',
+      title: 'Ασφάλειες',
+      subtitle: 'Τύποι ασφάλειας και κάλυψη',
       icon: Shield,
-      count: stats.insuranceTypes,
       href: '/dashboard/book-online/insurance',
-      color: 'orange',
+      color: '#ec4899',
     },
     {
-      title: 'Payment Methods',
-      description: 'Configure payment options',
+      title: 'Μέθοδοι Πληρωμής',
+      subtitle: 'Stripe, Viva Wallet, PayPal',
       icon: CreditCard,
-      count: stats.paymentMethods,
       href: '/dashboard/book-online/payment-methods',
-      color: 'indigo',
+      color: '#6366f1',
     },
     {
-      title: 'Bookings',
-      description: 'View and manage online bookings',
+      title: 'Κρατήσεις',
+      subtitle: 'Προβολή και διαχείριση κρατήσεων',
       icon: Globe,
-      count: stats.bookings,
       href: '/dashboard/book-online/bookings',
-      color: 'pink',
+      color: '#14b8a6',
     },
     {
-      title: 'Design Settings',
-      description: 'Customize booking page appearance',
-      icon: Settings,
+      title: 'Εμφάνιση',
+      subtitle: 'Χρώματα, λογότυπο, brand settings',
+      icon: Palette,
       href: '/dashboard/book-online/design',
-      color: 'gray',
+      color: '#f43f5e',
+    },
+    {
+      title: 'Αναλυτικά',
+      subtitle: 'Στατιστικά και αναφορές κρατήσεων',
+      icon: BarChart3,
+      href: '/dashboard/book-online/analytics',
+      color: '#8b5cf6',
     },
   ];
 
@@ -152,48 +224,92 @@ export default function BookOnlinePage() {
       </nav>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-4xl">
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const colorClasses = {
-                blue: 'bg-blue-100 text-blue-600',
-                green: 'bg-green-100 text-green-600',
-                purple: 'bg-purple-100 text-purple-600',
-                orange: 'bg-orange-100 text-orange-600',
-                indigo: 'bg-indigo-100 text-indigo-600',
-                pink: 'bg-pink-100 text-pink-600',
-                gray: 'bg-gray-100 text-gray-600',
-              };
-              
-              return (
-                <Link
-                  key={item.title}
-                  href={item.href}
-                  className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[item.color as keyof typeof colorClasses]}`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    {item.count !== undefined && (
-                      <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
-                        {item.count}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
-                  <p className="text-sm text-gray-600">{item.description}</p>
-                </Link>
-              );
-            })}
-          </div>
+          <>
+            {/* Header Section */}
+            <div className="mb-8 bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
+                  <Globe className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Online Booking System</h2>
+                  <p className="text-sm text-gray-600 mt-1">Διαχείριση συστήματος online κρατήσεων</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                <p className="text-2xl font-bold text-blue-600 mb-1">{stats.activeBookings}</p>
+                <p className="text-xs text-gray-600">Ενεργές Κρατήσεις</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                <p className="text-2xl font-bold text-green-600 mb-1">{stats.availableCars}</p>
+                <p className="text-xs text-gray-600">Διαθέσιμα Αυτ/τα</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                <p className="text-2xl font-bold text-orange-600 mb-1">€{stats.monthlyRevenue.toLocaleString()}</p>
+                <p className="text-xs text-gray-600">Μηνιαία Έσοδα</p>
+              </div>
+            </div>
+
+            {/* Menu Items */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Διαχείριση</h3>
+              <div className="space-y-2">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  
+                  return (
+                    <Link
+                      key={item.title}
+                      href={item.href}
+                      className="block bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div 
+                            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: `${item.color}15` }}
+                          >
+                            <Icon className="w-6 h-6" style={{ color: item.color }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-base font-semibold text-gray-900 mb-1">{item.title}</h4>
+                            <p className="text-sm text-gray-600 truncate">{item.subtitle}</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Website Preview Button */}
+            <div className="mt-6">
+              <button
+                onClick={() => {
+                  // TODO: Open booking website preview
+                  window.open('/booking', '_blank');
+                }}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-4 flex items-center justify-center gap-3 hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Eye className="w-6 h-6" />
+                <span className="font-semibold text-lg">Προεπισκόπηση Website</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </>
         )}
       </main>
     </div>
