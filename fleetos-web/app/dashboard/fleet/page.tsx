@@ -230,8 +230,7 @@ export default function FleetPage() {
       if (allCars.length === 0) {
         console.warn('⚠️ NO CARS FOUND. Debug info:');
         console.log('- User ID:', user.id);
-        console.log('- Organization ID:', organizationId);
-        console.log('- Cars by user_id error:', errorByUserId);
+        console.log('- Organization ID:', foundOrganizationId);
         console.log('- Sample cars in DB:', allCarsCheck?.slice(0, 5));
       }
     } catch (error) {
