@@ -50,6 +50,33 @@ export default function DashboardPage() {
 
       console.log('Loading dashboard for user:', authUser.email);
 
+      // First, ensure user record exists (create if missing)
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (checkError && checkError.code === 'PGRST116') {
+        // User doesn't exist in users table, create it
+        console.log('User not found in users table, creating record...');
+        const { error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: authUser.id,
+            email: authUser.email || '',
+            name: authUser.user_metadata?.name || authUser.email || 'User',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (createError) {
+          console.error('Error creating user record:', createError);
+        } else {
+          console.log('User record created successfully');
+        }
+      }
+
       // Get user data with organization - same as mobile app
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -60,56 +87,85 @@ export default function DashboardPage() {
       if (userError) {
         console.error('Error loading user data:', userError);
         console.error('User ID:', authUser.id);
-        // Try to load organization_id directly
-        const { data: userDataSimple, error: userErrorSimple } = await supabase
-          .from('users')
-          .select('organization_id')
-          .eq('id', authUser.id)
-          .single();
-        
-        if (userErrorSimple || !userDataSimple?.organization_id) {
-          console.error('User has no organization_id. Error:', userErrorSimple);
-          alert('Your account is not associated with an organization. Please contact support.');
-          return;
-        }
-        
-        // Load stats with organization_id from simple query
-        const orgId = userDataSimple.organization_id;
-        console.log('Loading stats for organization:', orgId);
-        await Promise.all([
-          loadCarCount(orgId),
-          loadActiveRentals(orgId),
-          loadCustomerCount(orgId),
-          loadMonthlyRevenue(orgId),
-        ]);
-        
-        // Get organization details
-        const { data: org } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', orgId)
-          .single();
-        
-        setUser({ ...userDataSimple, organization: org });
+        alert('Failed to load user data. Please refresh the page.');
         return;
       }
 
       console.log('User data loaded:', userData);
       setUser(userData);
 
-      if (!userData?.organization_id) {
-        console.error('User data exists but no organization_id');
-        alert('Your account is not associated with an organization. Please contact support.');
+      // Try to find organization_id from user data, or from their contracts/cars
+      let orgId = userData?.organization_id;
+      
+      if (!orgId) {
+        console.log('No organization_id in user record, trying to find from user data...');
+        
+        // Try to get organization from contracts created by this user
+        const { data: contract } = await supabase
+          .from('contracts')
+          .select('organization_id')
+          .eq('created_by', authUser.id)
+          .limit(1)
+          .single();
+        
+        if (contract?.organization_id) {
+          orgId = contract.organization_id;
+          console.log('Found organization from contracts:', orgId);
+          
+          // Update user record with organization_id
+          await supabase
+            .from('users')
+            .update({ organization_id: orgId })
+            .eq('id', authUser.id);
+        } else {
+          // Try to get organization from cars
+          const { data: car } = await supabase
+            .from('cars')
+            .select('organization_id')
+            .eq('created_by', authUser.id)
+            .limit(1)
+            .single();
+          
+          if (car?.organization_id) {
+            orgId = car.organization_id;
+            console.log('Found organization from cars:', orgId);
+            
+            // Update user record with organization_id
+            await supabase
+              .from('users')
+              .update({ organization_id: orgId })
+              .eq('id', authUser.id);
+          }
+        }
+      }
+
+      if (!orgId) {
+        console.error('User has no organization_id and could not find it from data');
+        // Don't show alert, just show 0 stats - user can still access dashboard
+        console.log('Showing dashboard with no organization (stats will be 0)');
         return;
       }
 
+      // Reload user data if we updated organization_id
+      if (orgId && !userData.organization_id) {
+        const { data: updatedUser } = await supabase
+          .from('users')
+          .select('*, organization:organizations(*)')
+          .eq('id', authUser.id)
+          .single();
+        
+        if (updatedUser) {
+          setUser(updatedUser);
+        }
+      }
+
       // Load stats
-      console.log('Loading stats for organization:', userData.organization_id);
+      console.log('Loading stats for organization:', orgId);
       await Promise.all([
-        loadCarCount(userData.organization_id),
-        loadActiveRentals(userData.organization_id),
-        loadCustomerCount(userData.organization_id),
-        loadMonthlyRevenue(userData.organization_id),
+        loadCarCount(orgId),
+        loadActiveRentals(orgId),
+        loadCustomerCount(orgId),
+        loadMonthlyRevenue(orgId),
       ]);
     } catch (error) {
       console.error('Error loading dashboard:', error);
