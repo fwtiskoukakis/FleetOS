@@ -356,9 +356,11 @@ export default function DashboardPage() {
 
   async function loadCustomerCount(orgId: string) {
     try {
-      const { count, error } = await supabase
-        .from('customer_profiles')
-        .select('*', { count: 'exact', head: true })
+      // Count unique customers from contracts (not from customer_profiles)
+      // This matches how the app works - customers are the renters in contracts
+      const { data: contracts, error } = await supabase
+        .from('contracts')
+        .select('renter_full_name, renter_email, renter_phone_number')
         .eq('organization_id', orgId);
       
       if (error) {
@@ -366,8 +368,23 @@ export default function DashboardPage() {
         return;
       }
       
-      console.log('Customer count for org', orgId, ':', count || 0);
-      setStats(prev => ({ ...prev, totalCustomers: count || 0 }));
+      // Count unique customers by email (or name+phone if no email)
+      const uniqueCustomers = new Set<string>();
+      contracts?.forEach(contract => {
+        if (contract.renter_email) {
+          uniqueCustomers.add(contract.renter_email.toLowerCase());
+        } else if (contract.renter_full_name && contract.renter_phone_number) {
+          // Use name+phone as unique identifier if no email
+          uniqueCustomers.add(`${contract.renter_full_name.toLowerCase()}-${contract.renter_phone_number}`);
+        } else if (contract.renter_full_name) {
+          // Fallback to just name
+          uniqueCustomers.add(contract.renter_full_name.toLowerCase());
+        }
+      });
+      
+      const customerCount = uniqueCustomers.size;
+      console.log('Customer count for org', orgId, ':', customerCount);
+      setStats(prev => ({ ...prev, totalCustomers: customerCount }));
     } catch (error) {
       console.error('Exception loading customer count:', error);
     }
@@ -375,18 +392,34 @@ export default function DashboardPage() {
 
   async function loadCustomerCountAll() {
     try {
-      // Load all customers (no organization filter) - same as mobile app
-      const { count, error } = await supabase
-        .from('customer_profiles')
-        .select('*', { count: 'exact', head: true });
+      // Count unique customers from contracts (not from customer_profiles)
+      // This matches how the app works - customers are the renters in contracts
+      const { data: contracts, error } = await supabase
+        .from('contracts')
+        .select('renter_full_name, renter_email, renter_phone_number');
       
       if (error) {
         console.error('Error loading customer count (all):', error);
         return;
       }
       
-      console.log('Customer count (all):', count || 0);
-      setStats(prev => ({ ...prev, totalCustomers: count || 0 }));
+      // Count unique customers by email (or name+phone if no email)
+      const uniqueCustomers = new Set<string>();
+      contracts?.forEach(contract => {
+        if (contract.renter_email) {
+          uniqueCustomers.add(contract.renter_email.toLowerCase());
+        } else if (contract.renter_full_name && contract.renter_phone_number) {
+          // Use name+phone as unique identifier if no email
+          uniqueCustomers.add(`${contract.renter_full_name.toLowerCase()}-${contract.renter_phone_number}`);
+        } else if (contract.renter_full_name) {
+          // Fallback to just name
+          uniqueCustomers.add(contract.renter_full_name.toLowerCase());
+        }
+      });
+      
+      const customerCount = uniqueCustomers.size;
+      console.log('Customer count (all, from contracts):', customerCount);
+      setStats(prev => ({ ...prev, totalCustomers: customerCount }));
     } catch (error) {
       console.error('Exception loading customer count (all):', error);
     }
@@ -394,26 +427,49 @@ export default function DashboardPage() {
 
   async function loadMonthlyRevenue(orgId: string) {
     try {
-      // Try total_price first, fallback to total_cost (mobile app uses total_cost)
-      const { data, error } = await supabase
+      // Get first day of current month
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // Load completed contracts for this month
+      const { data: completedContracts, error: completedError } = await supabase
         .from('contracts')
-        .select('total_price, total_cost')
+        .select('total_price, total_cost, created_at')
         .eq('organization_id', orgId)
         .eq('status', 'completed')
-        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+        .gte('created_at', firstDayOfMonth.toISOString());
 
-      if (error) {
-        console.error('Error loading monthly revenue:', error);
-        return;
+      // Also get active contracts that started this month
+      const { data: activeContracts, error: activeError } = await supabase
+        .from('contracts')
+        .select('total_price, total_cost, created_at, pickup_date')
+        .eq('organization_id', orgId)
+        .in('status', ['active', 'pending'])
+        .gte('pickup_date', firstDayOfMonth.toISOString().split('T')[0]);
+
+      if (completedError) {
+        console.error('Error loading completed contracts:', completedError);
+      }
+      if (activeError) {
+        console.error('Error loading active contracts:', activeError);
       }
 
-      const revenue = data?.reduce((sum, contract) => {
-        const price = contract.total_price || contract.total_cost || 0;
+      // Calculate revenue from completed contracts
+      const completedRevenue = completedContracts?.reduce((sum, contract) => {
+        const price = contract.total_cost || contract.total_price || 0;
         return sum + price;
       }, 0) || 0;
+
+      // Calculate revenue from active contracts (they've been paid for)
+      const activeRevenue = activeContracts?.reduce((sum, contract) => {
+        const price = contract.total_cost || contract.total_price || 0;
+        return sum + price;
+      }, 0) || 0;
+
+      const totalRevenue = completedRevenue + activeRevenue;
       
-      console.log('Monthly revenue for org', orgId, ':', revenue);
-      setStats(prev => ({ ...prev, monthlyRevenue: revenue }));
+      console.log('Monthly revenue for org', orgId, ':', totalRevenue, '(completed:', completedRevenue, 'active:', activeRevenue, ')');
+      setStats(prev => ({ ...prev, monthlyRevenue: totalRevenue }));
     } catch (error) {
       console.error('Exception loading monthly revenue:', error);
     }
@@ -421,25 +477,48 @@ export default function DashboardPage() {
 
   async function loadMonthlyRevenueAll() {
     try {
-      // Load all completed contracts for this month (no organization filter) - same as mobile app
-      const { data, error } = await supabase
+      // Get first day of current month
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // Load all contracts for this month (no organization filter) - same as mobile app
+      // Check both status = 'completed' and also active/pending contracts that might have revenue
+      const { data: completedContracts, error: completedError } = await supabase
         .from('contracts')
-        .select('total_price, total_cost')
+        .select('total_price, total_cost, created_at')
         .eq('status', 'completed')
-        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+        .gte('created_at', firstDayOfMonth.toISOString());
 
-      if (error) {
-        console.error('Error loading monthly revenue (all):', error);
-        return;
+      // Also get active contracts that started this month
+      const { data: activeContracts, error: activeError } = await supabase
+        .from('contracts')
+        .select('total_price, total_cost, created_at, pickup_date')
+        .in('status', ['active', 'pending'])
+        .gte('pickup_date', firstDayOfMonth.toISOString().split('T')[0]);
+
+      if (completedError) {
+        console.error('Error loading completed contracts:', completedError);
+      }
+      if (activeError) {
+        console.error('Error loading active contracts:', activeError);
       }
 
-      const revenue = data?.reduce((sum, contract) => {
-        const price = contract.total_price || contract.total_cost || 0;
+      // Calculate revenue from completed contracts
+      const completedRevenue = completedContracts?.reduce((sum, contract) => {
+        const price = contract.total_cost || contract.total_price || 0;
         return sum + price;
       }, 0) || 0;
+
+      // Calculate revenue from active contracts (they've been paid for)
+      const activeRevenue = activeContracts?.reduce((sum, contract) => {
+        const price = contract.total_cost || contract.total_price || 0;
+        return sum + price;
+      }, 0) || 0;
+
+      const totalRevenue = completedRevenue + activeRevenue;
       
-      console.log('Monthly revenue (all):', revenue);
-      setStats(prev => ({ ...prev, monthlyRevenue: revenue }));
+      console.log('Monthly revenue (all):', totalRevenue, '(completed:', completedRevenue, 'active:', activeRevenue, ')');
+      setStats(prev => ({ ...prev, monthlyRevenue: totalRevenue }));
     } catch (error) {
       console.error('Exception loading monthly revenue (all):', error);
     }
