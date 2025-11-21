@@ -298,8 +298,15 @@ export async function saveContract(contract: Contract): Promise<Contract> {
 
     // Update customer's total_rentals if customer was created/found
     if (customerId) {
-      await supabase.rpc('increment_customer_rentals', { customer_id: customerId })
-        .catch(err => console.error('Error incrementing customer rentals:', err));
+      try {
+        const { error: incrementError } = await supabase.rpc('increment_customer_rentals', { customer_id: customerId });
+        if (incrementError) {
+          console.error('Error incrementing customer rentals:', incrementError);
+        }
+      } catch (err) {
+        console.error('Exception incrementing customer rentals:', err);
+        // Don't throw - contract is saved
+      }
     }
 
     return { ...contract, id: contractId };
