@@ -150,7 +150,7 @@ export class PhotoStorageService {
         .from('contract_photos')
         .select('id, photo_url')
         .eq('contract_id', contractId)
-        .order('display_order', { ascending: true });
+        .order('created_at', { ascending: true }); // Use created_at for ordering since display_order doesn't exist in schema
 
       if (error) {
         console.error('Error loading contract photos:', error);
