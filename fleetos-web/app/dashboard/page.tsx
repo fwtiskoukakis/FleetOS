@@ -55,9 +55,13 @@ export default function DashboardPage() {
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code === 'PGRST116') {
+      if (checkError) {
+        console.error('Error checking user:', checkError);
+      }
+
+      if (!existingUser) {
         // User doesn't exist in users table, create it
         console.log('User not found in users table, creating record...');
         const { error: createError } = await supabase
@@ -65,13 +69,14 @@ export default function DashboardPage() {
           .insert({
             id: authUser.id,
             email: authUser.email || '',
-            name: authUser.user_metadata?.name || authUser.email || 'User',
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
 
         if (createError) {
           console.error('Error creating user record:', createError);
+          // Try to continue anyway
         } else {
           console.log('User record created successfully');
         }
@@ -82,11 +87,73 @@ export default function DashboardPage() {
         .from('users')
         .select('*, organization:organizations(*)')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
 
       if (userError) {
         console.error('Error loading user data:', userError);
         console.error('User ID:', authUser.id);
+        
+        // If user still doesn't exist, create minimal record
+        if (userError.code === 'PGRST116') {
+          console.log('User still not found, creating minimal record...');
+          const { error: createMinimalError } = await supabase
+            .from('users')
+            .insert({
+              id: authUser.id,
+              email: authUser.email || '',
+              name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+            });
+
+          if (createMinimalError) {
+            console.error('Failed to create user record:', createMinimalError);
+            alert('Failed to initialize your account. Please contact support.');
+            return;
+          }
+
+          // Retry loading user data
+          const { data: retryUserData, error: retryError } = await supabase
+            .from('users')
+            .select('*, organization:organizations(*)')
+            .eq('id', authUser.id)
+            .maybeSingle();
+
+          if (retryError) {
+            console.error('Error after retry:', retryError);
+            alert('Failed to load user data. Please refresh the page.');
+            return;
+          }
+
+          if (!retryUserData) {
+            alert('Failed to load user data. Please refresh the page.');
+            return;
+          }
+
+          setUser(retryUserData);
+          
+          if (!retryUserData.organization_id) {
+            // Show dashboard without organization - stats will be 0
+            console.log('User has no organization - showing dashboard with 0 stats');
+            return;
+          }
+
+          // Continue with organization_id
+          const orgId = retryUserData.organization_id;
+          console.log('Loading stats for organization:', orgId);
+          await Promise.all([
+            loadCarCount(orgId),
+            loadActiveRentals(orgId),
+            loadCustomerCount(orgId),
+            loadMonthlyRevenue(orgId),
+          ]);
+          return;
+        } else {
+          alert('Failed to load user data. Please refresh the page.');
+          return;
+        }
+      }
+
+      if (!userData) {
+        console.error('User data is null after query');
         alert('Failed to load user data. Please refresh the page.');
         return;
       }
@@ -140,9 +207,13 @@ export default function DashboardPage() {
       }
 
       if (!orgId) {
-        console.error('User has no organization_id and could not find it from data');
-        // Don't show alert, just show 0 stats - user can still access dashboard
+        console.log('User has no organization_id and could not find it from data');
+        // Show dashboard with 0 stats - user can still access dashboard
+        // They can create an organization later or it will be created during onboarding
         console.log('Showing dashboard with no organization (stats will be 0)');
+        
+        // Set user data even without organization
+        setUser(userData);
         return;
       }
 
