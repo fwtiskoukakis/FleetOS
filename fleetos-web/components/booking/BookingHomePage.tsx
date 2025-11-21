@@ -1,0 +1,292 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Calendar, MapPin, Clock, ChevronRight, Car } from 'lucide-react';
+import { createClientComponentClient } from '@/lib/supabase';
+import type { Organization, Location, BookingDesignSettings } from '@/lib/supabase';
+
+interface BookingHomePageProps {
+  organization: Organization;
+  designSettings: BookingDesignSettings | null;
+  locations: Location[];
+}
+
+export default function BookingHomePage({ 
+  organization, 
+  designSettings, 
+  locations 
+}: BookingHomePageProps) {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  
+  const [searchData, setSearchData] = useState({
+    pickupLocation: locations[0]?.id || '',
+    pickupDate: '',
+    pickupTime: '10:00',
+    dropoffLocation: locations[0]?.id || '',
+    dropoffDate: '',
+    dropoffTime: '10:00',
+    differentDropoff: false,
+  });
+
+  useEffect(() => {
+    if (locations.length > 0) {
+      setSearchData(prev => ({
+        ...prev,
+        pickupLocation: locations[0].id,
+        dropoffLocation: locations[0].id,
+      }));
+    }
+  }, [locations]);
+
+  function handleSearch() {
+    if (!searchData.pickupLocation || !searchData.pickupDate || !searchData.dropoffDate) {
+      alert('Παρακαλώ συμπληρώστε όλα τα πεδία');
+      return;
+    }
+
+    const params = new URLSearchParams({
+      org_slug: organization.slug,
+      pickup_location: searchData.pickupLocation,
+      pickup_date: searchData.pickupDate,
+      pickup_time: searchData.pickupTime,
+      dropoff_location: searchData.differentDropoff ? searchData.dropoffLocation : searchData.pickupLocation,
+      dropoff_date: searchData.dropoffDate,
+      dropoff_time: searchData.dropoffTime,
+    });
+
+    router.push(`/booking/${organization.slug}/cars?${params.toString()}`);
+  }
+
+  const primaryColor = designSettings?.primary_color || organization.brand_color_primary || '#2563eb';
+  const companyName = designSettings?.company_name_el || organization.trading_name || organization.company_name;
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header with Company Branding */}
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            {organization.logo_url ? (
+              <img 
+                src={organization.logo_url} 
+                alt={companyName}
+                className="h-12 object-contain"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Car className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xl font-bold text-gray-900">{companyName}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section 
+        className="py-20 px-4 sm:px-6 lg:px-8"
+        style={{ backgroundColor: `${primaryColor}10` }}
+      >
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Κλείστε το Αυτοκίνητό σας
+            </h1>
+            <p className="text-xl text-gray-600">
+              Επιλέξτε ημερομηνία και τοποθεσία παραλαβής
+            </p>
+          </div>
+
+          {/* Search Form */}
+          <div className="card bg-white shadow-xl">
+            <div className="space-y-6">
+              {/* Pickup Location */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Τοποθεσία Παραλαβής
+                </label>
+                <select
+                  value={searchData.pickupLocation}
+                  onChange={(e) => setSearchData({ ...searchData, pickupLocation: e.target.value })}
+                  className="input"
+                >
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name_el}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pickup Date & Time */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Calendar className="w-4 h-4 inline mr-1" />
+                    Ημερομηνία Παραλαβής
+                  </label>
+                  <input
+                    type="date"
+                    value={searchData.pickupDate}
+                    onChange={(e) => setSearchData({ ...searchData, pickupDate: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    Ώρα Παραλαβής
+                  </label>
+                  <input
+                    type="time"
+                    value={searchData.pickupTime}
+                    onChange={(e) => setSearchData({ ...searchData, pickupTime: e.target.value })}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {/* Different Dropoff Location Checkbox */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="differentDropoff"
+                  checked={searchData.differentDropoff}
+                  onChange={(e) => setSearchData({ ...searchData, differentDropoff: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="differentDropoff" className="text-sm font-medium text-gray-700">
+                  Διαφορετική τοποθεσία παράδοσης
+                </label>
+              </div>
+
+              {/* Dropoff Location (if different) */}
+              {searchData.differentDropoff && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <MapPin className="w-4 h-4 inline mr-1" />
+                    Τοποθεσία Παράδοσης
+                  </label>
+                  <select
+                    value={searchData.dropoffLocation}
+                    onChange={(e) => setSearchData({ ...searchData, dropoffLocation: e.target.value })}
+                    className="input"
+                  >
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.name_el}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Dropoff Date & Time */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Calendar className="w-4 h-4 inline mr-1" />
+                    Ημερομηνία Παράδοσης
+                  </label>
+                  <input
+                    type="date"
+                    value={searchData.dropoffDate}
+                    onChange={(e) => setSearchData({ ...searchData, dropoffDate: e.target.value })}
+                    min={searchData.pickupDate || new Date().toISOString().split('T')[0]}
+                    className="input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    Ώρα Παράδοσης
+                  </label>
+                  <input
+                    type="time"
+                    value={searchData.dropoffTime}
+                    onChange={(e) => setSearchData({ ...searchData, dropoffTime: e.target.value })}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {/* Search Button */}
+              <button
+                onClick={handleSearch}
+                className="btn btn-primary w-full py-4 text-lg flex items-center justify-center gap-2"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Αναζήτηση Οχημάτων
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-3xl font-bold text-center mb-12">Γιατί να Κλείσετε Μαζί μας;</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Γρήγορη Κράτηση</h3>
+              <p className="text-gray-600">
+                Ολοκληρώστε την κράτησή σας σε λιγότερο από 2 λεπτά
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Car className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Ευρεία Ποικιλία</h3>
+              <p className="text-gray-600">
+                Από οικονομικά μέχρι πολυτελή οχήματα
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPin className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Ευέλικτες Τοποθεσίες</h3>
+              <p className="text-gray-600">
+                Παραλάβετε και παραδώστε όπου σας βολεύει
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300 py-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <p className="text-sm">
+              &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+            </p>
+            {organization.phone_primary && (
+              <p className="text-sm mt-2">
+                Contact: {organization.phone_primary}
+              </p>
+            )}
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+

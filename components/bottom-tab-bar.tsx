@@ -39,6 +39,12 @@ const tabs: TabItem[] = [
     icon: 'car-sport',
     route: '/cars',
   },
+  {
+    key: 'booking',
+    label: 'Book Online',
+    icon: 'globe-outline',
+    route: '/book-online',
+  },
 ];
 
 interface BottomTabBarProps {
