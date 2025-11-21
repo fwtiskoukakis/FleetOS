@@ -95,18 +95,13 @@ export default function EditContractPage() {
   useEffect(() => {
     if (contractId) {
       loadAvailableCars();
+      loadContract();
     }
   }, [contractId]);
 
-  useEffect(() => {
-    if (contractId && availableCars.length > 0 && !loading) {
-      loadContract();
-    }
-  }, [contractId, availableCars.length]);
-
   // Set selected car after both contract and cars are loaded
   useEffect(() => {
-    if (carInfo.licensePlate && availableCars.length > 0 && !selectedCarId) {
+    if (carInfo.licensePlate && availableCars.length > 0 && !selectedCarId && !loading) {
       const matchingCar = availableCars.find(c => 
         c.license_plate === carInfo.licensePlate
       );
@@ -114,7 +109,7 @@ export default function EditContractPage() {
         setSelectedCarId(matchingCar.id);
       }
     }
-  }, [carInfo.licensePlate, availableCars, selectedCarId]);
+  }, [carInfo.licensePlate, availableCars.length, selectedCarId, loading]);
   
   async function loadAvailableCars() {
     try {
