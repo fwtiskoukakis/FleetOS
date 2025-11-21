@@ -283,9 +283,9 @@ export default function NewContractPage() {
       const dropoffDate = new Date(rentalPeriod.dropoffDate);
       dropoffDate.setHours(0, 0, 0, 0);
       
-      let status: 'active' | 'completed' | 'upcoming' | 'pending';
+      let status: 'active' | 'completed' | 'pending' | 'cancelled';
       if (today < pickupDate) {
-        status = 'upcoming';
+        status = 'pending'; // Upcoming contracts are stored as 'pending'
       } else if (today > dropoffDate) {
         status = 'completed';
       } else if (today >= pickupDate && today <= dropoffDate) {
