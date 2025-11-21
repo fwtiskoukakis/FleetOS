@@ -433,7 +433,11 @@ export default function ContractDetailsPage() {
             {contract.fuel_level !== null && contract.fuel_level !== undefined && (
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Fuel Level</label>
-                <p className="text-base text-gray-900">{contract.fuel_level}%</p>
+                <p className="text-base text-gray-900">
+                  {contract.fuel_level > 8 
+                    ? `${contract.fuel_level}%` 
+                    : `${contract.fuel_level}/8`} {/* Display 0-8 scale or legacy percentage */}
+                </p>
               </div>
             )}
           </div>

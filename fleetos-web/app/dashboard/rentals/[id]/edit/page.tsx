@@ -82,7 +82,7 @@ export default function EditContractPage() {
   });
   
   const [carCondition, setCarCondition] = useState({
-    fuelLevel: 100,
+    fuelLevel: 8, // Full tank by default (0-8 scale, not 0-100%)
     insuranceType: 'basic',
     exteriorCondition: 'good',
     interiorCondition: 'good',
@@ -233,8 +233,16 @@ export default function EditContractPage() {
         color: contractData.car_color || '',
       });
       
+      // Convert fuel_level from database (could be 0-100% from old data or 0-8 from new data)
+      // If > 8, assume it's old percentage format and convert to 0-8 scale (round to nearest)
+      let fuelLevel = contractData.fuel_level ?? 8;
+      if (fuelLevel > 8) {
+        fuelLevel = Math.round((fuelLevel / 100) * 8); // Convert percentage to 0-8 scale
+        if (fuelLevel === 0 && contractData.fuel_level > 0) fuelLevel = 1; // Ensure at least 1 if there was fuel
+      }
+      
       setCarCondition({
-        fuelLevel: contractData.fuel_level ?? 100,
+        fuelLevel: fuelLevel,
         insuranceType: contractData.insurance_type || 'basic',
         exteriorCondition: contractData.exterior_condition || 'good',
         interiorCondition: contractData.interior_condition || 'good',
@@ -413,7 +421,7 @@ export default function EditContractPage() {
         car_color: carInfo.color || null,
         car_mileage: carCondition.mileage || 0,
         
-        fuel_level: carCondition.fuelLevel ?? 100,
+        fuel_level: carCondition.fuelLevel ?? 8, // 0-8 scale, not 0-100%
         insurance_type: carCondition.insuranceType || 'basic',
         exterior_condition: carCondition.exteriorCondition || 'good',
         interior_condition: carCondition.interiorCondition || 'good',
@@ -843,16 +851,36 @@ export default function EditContractPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Level (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={carCondition.fuelLevel || ''}
-                      onChange={(e) => setCarCondition({ ...carCondition, fuelLevel: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="100"
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Level (0-8) *</label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-600 transition-all duration-300"
+                            style={{ width: `${(carCondition.fuelLevel / 8) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 w-12 text-right">
+                          {carCondition.fuelLevel}/8
+                        </span>
+                      </div>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((level) => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => setCarCondition({ ...carCondition, fuelLevel: level })}
+                            className={`flex-1 px-2 py-1 text-sm font-medium rounded transition-colors ${
+                              carCondition.fuelLevel >= level
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

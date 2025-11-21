@@ -78,7 +78,7 @@ export default function NewContractPage() {
   });
   
   const [carCondition, setCarCondition] = useState<CarCondition>({
-    fuelLevel: 100,
+    fuelLevel: 8, // Full tank by default (0-8 scale, not 0-100%)
     insuranceType: 'basic',
     exteriorCondition: 'good',
     interiorCondition: 'good',
@@ -776,15 +776,36 @@ export default function NewContractPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Level (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={carCondition.fuelLevel || 100}
-                  onChange={(e) => setCarCondition({ ...carCondition, fuelLevel: parseInt(e.target.value) || 100 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Level (0-8) *</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-600 transition-all duration-300"
+                        style={{ width: `${(carCondition.fuelLevel / 8) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 w-12 text-right">
+                      {carCondition.fuelLevel}/8
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setCarCondition({ ...carCondition, fuelLevel: level })}
+                        className={`flex-1 px-2 py-1 text-sm font-medium rounded transition-colors ${
+                          carCondition.fuelLevel >= level
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               
               <div>

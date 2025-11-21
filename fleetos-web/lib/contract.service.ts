@@ -248,7 +248,7 @@ export async function saveContract(contract: Contract): Promise<Contract> {
       car_color: contract.carInfo.color || null,
       
       // Car condition
-      fuel_level: contract.carCondition?.fuelLevel || 100,
+      fuel_level: contract.carCondition?.fuelLevel || 8, // 0-8 scale, not 0-100%
       insurance_type: contract.carCondition?.insuranceType || 'basic',
       exterior_condition: contract.carCondition?.exteriorCondition || 'good',
       interior_condition: contract.carCondition?.interiorCondition || 'good',
