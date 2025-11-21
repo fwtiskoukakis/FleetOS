@@ -27,7 +27,6 @@ import FleetOSLogo from '@/components/FleetOSLogo';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { CarDiagram } from '@/components/CarDiagram';
 import { PhotoStorageService } from '@/lib/photo-storage.service';
 import { saveContract, type Contract, type RenterInfo, type RentalPeriod, type CarInfo, type CarCondition } from '@/lib/contract.service';
 import { Camera, Image as ImageIcon, Signature, RefreshCw, X } from 'lucide-react';
@@ -544,36 +543,35 @@ export default function ContractDetailsPage() {
           </div>
         )}
         
-        {/* Damage Points */}
+        {/* Damage Points - List View (matches mobile app exactly) */}
         {damagePoints.length > 0 && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <AlertCircle className="w-5 h-5 text-orange-600" />
-              <h2 className="text-lg font-bold text-gray-900">Damage Points</h2>
-              <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
-                {damagePoints.length}
-              </span>
+              <h2 className="text-lg font-bold text-gray-900">Damage Points ({damagePoints.length})</h2>
             </div>
             
             <div className="space-y-3">
-              {damagePoints.map((damage, index) => (
-                <div key={damage.id || index} className="border border-orange-200 rounded-lg p-3 bg-orange-50">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">{(damage.location || damage.view_side || 'Unknown').charAt(0).toUpperCase() + (damage.location || damage.view_side || 'Unknown').slice(1)}</p>
-                      {damage.description && (
-                        <p className="text-sm text-gray-600 mt-1">{damage.description}</p>
-                      )}
+              {damagePoints.map((damage, index) => {
+                const markerTypeLabels: Record<string, string> = {
+                  'slight-scratch': 'Slight Scratch',
+                  'heavy-scratch': 'Heavy Scratch',
+                  'bent': 'Bent',
+                  'broken': 'Broken'
+                };
+                const markerLabel = damage.marker_type ? markerTypeLabels[damage.marker_type] : 'Damage';
+                
+                return (
+                  <div key={damage.id || index} className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                    <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {markerLabel} - {damage.description || (damage.view_side || 'Unknown')} ({damage.severity || 'minor'})
+                      </p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded capitalize`} style={{
-                      backgroundColor: damage.severity === 'major' ? '#fee2e2' : damage.severity === 'moderate' ? '#fef3c7' : '#dcfce7',
-                      color: damage.severity === 'major' ? '#991b1b' : damage.severity === 'moderate' ? '#92400e' : '#166534'
-                    }}>
-                      {damage.severity || 'minor'}
-                    </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
