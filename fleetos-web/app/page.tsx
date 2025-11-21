@@ -42,7 +42,7 @@ export default function LandingPage() {
               <Link href="/login" className="text-gray-600 hover:text-gray-900">
                 Login
               </Link>
-              <Link href="/signup" className="btn btn-primary">
+              <Link href="/signup" className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800">
                 Get Started
               </Link>
             </div>
@@ -67,7 +67,7 @@ export default function LandingPage() {
               <Link href="/login" className="block text-gray-600 hover:text-gray-900">
                 Login
               </Link>
-              <Link href="/signup" className="block btn btn-primary w-full text-center">
+              <Link href="/signup" className="block px-4 py-2 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 w-full text-center">
                 Get Started
               </Link>
             </div>
@@ -88,11 +88,11 @@ export default function LandingPage() {
               Available on mobile and web with real-time sync.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup" className="btn btn-primary text-lg px-8 py-3 inline-flex items-center justify-center gap-2">
+              <Link href="/signup" className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 text-lg inline-flex items-center justify-center gap-2">
                 Start Free Trial
                 <ArrowRight size={20} />
               </Link>
-              <Link href="/login" className="btn btn-outline text-lg px-8 py-3">
+              <Link href="/login" className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-lg">
                 Sign In
               </Link>
             </div>
@@ -128,7 +128,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <Smartphone className="w-6 h-6 text-blue-600" />
               </div>
@@ -140,7 +140,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                 <Car className="w-6 h-6 text-green-600" />
               </div>
@@ -152,7 +152,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                 <Calendar className="w-6 h-6 text-purple-600" />
               </div>
@@ -164,7 +164,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 4 */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-orange-600" />
               </div>
@@ -176,7 +176,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 5 */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                 <BarChart3 className="w-6 h-6 text-red-600" />
               </div>
@@ -188,7 +188,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 6 */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-indigo-600" />
               </div>
@@ -212,7 +212,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {/* Starter Plan */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-2xl font-bold mb-2">Starter</h3>
               <div className="mb-6">
                 <span className="text-4xl font-bold">€49</span>
@@ -236,13 +236,13 @@ export default function LandingPage() {
                   <span>Email support</span>
                 </li>
               </ul>
-              <Link href="/signup" className="btn btn-outline w-full">
+              <Link href="/signup" className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 w-full">
                 Get Started
               </Link>
             </div>
 
             {/* Pro Plan */}
-            <div className="card border-2 border-blue-600 relative">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-blue-600 p-6 relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
                   Most Popular
@@ -275,13 +275,13 @@ export default function LandingPage() {
                   <span>Custom branding</span>
                 </li>
               </ul>
-              <Link href="/signup" className="btn btn-primary w-full">
+              <Link href="/signup" className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 w-full">
                 Get Started
               </Link>
             </div>
 
             {/* Enterprise Plan */}
-            <div className="card">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
               <div className="mb-6">
                 <span className="text-4xl font-bold">Custom</span>
@@ -308,7 +308,7 @@ export default function LandingPage() {
                   <span>Custom integrations</span>
                 </li>
               </ul>
-              <Link href="/contact" className="btn btn-outline w-full">
+              <Link href="/contact" className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 w-full">
                 Contact Sales
               </Link>
             </div>
@@ -325,7 +325,7 @@ export default function LandingPage() {
           <p className="text-xl text-blue-100 mb-8">
             Join hundreds of rental companies using FleetOS to streamline their operations
           </p>
-          <Link href="/signup" className="btn bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-3 inline-flex items-center gap-2">
+          <Link href="/signup" className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-3 inline-flex items-center gap-2">
             Start Free Trial
             <ArrowRight size={20} />
           </Link>

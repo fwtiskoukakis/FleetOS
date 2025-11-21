@@ -105,7 +105,7 @@ export default function BookingHomePage({
           </div>
 
           {/* Search Form */}
-          <div className="card bg-white shadow-xl">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" bg-white shadow-xl">
             <div className="space-y-6">
               {/* Pickup Location */}
               <div>
@@ -116,7 +116,7 @@ export default function BookingHomePage({
                 <select
                   value={searchData.pickupLocation}
                   onChange={(e) => setSearchData({ ...searchData, pickupLocation: e.target.value })}
-                  className="input"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {locations.map((loc) => (
                     <option key={loc.id} value={loc.id}>
@@ -138,7 +138,7 @@ export default function BookingHomePage({
                     value={searchData.pickupDate}
                     onChange={(e) => setSearchData({ ...searchData, pickupDate: e.target.value })}
                     min={new Date().toISOString().split('T')[0]}
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -151,7 +151,7 @@ export default function BookingHomePage({
                     type="time"
                     value={searchData.pickupTime}
                     onChange={(e) => setSearchData({ ...searchData, pickupTime: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -180,7 +180,7 @@ export default function BookingHomePage({
                   <select
                     value={searchData.dropoffLocation}
                     onChange={(e) => setSearchData({ ...searchData, dropoffLocation: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     {locations.map((loc) => (
                       <option key={loc.id} value={loc.id}>
@@ -203,7 +203,7 @@ export default function BookingHomePage({
                     value={searchData.dropoffDate}
                     onChange={(e) => setSearchData({ ...searchData, dropoffDate: e.target.value })}
                     min={searchData.pickupDate || new Date().toISOString().split('T')[0]}
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -216,7 +216,7 @@ export default function BookingHomePage({
                     type="time"
                     value={searchData.dropoffTime}
                     onChange={(e) => setSearchData({ ...searchData, dropoffTime: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -224,7 +224,7 @@ export default function BookingHomePage({
               {/* Search Button */}
               <button
                 onClick={handleSearch}
-                className="btn btn-primary w-full py-4 text-lg flex items-center justify-center gap-2"
+                className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 w-full py-4 text-lg flex items-center justify-center gap-2"
                 style={{ backgroundColor: primaryColor }}
               >
                 Αναζήτηση Οχημάτων

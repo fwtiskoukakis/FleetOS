@@ -174,7 +174,7 @@ export default function DashboardPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Cars */}
-          <div className="card">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Total Cars</h3>
               <Car className="w-5 h-5 text-blue-600" />
@@ -184,7 +184,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Active Rentals */}
-          <div className="card">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Active Rentals</h3>
               <Activity className="w-5 h-5 text-green-600" />
@@ -194,7 +194,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Total Customers */}
-          <div className="card">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Customers</h3>
               <Users className="w-5 h-5 text-purple-600" />
@@ -204,7 +204,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Monthly Revenue */}
-          <div className="card">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Monthly Revenue</h3>
               <DollarSign className="w-5 h-5 text-green-600" />
@@ -216,7 +216,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link href="/dashboard/fleet" className="card hover:shadow-lg transition-shadow cursor-pointer">
+          <Link href="/dashboard/fleet" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Car className="w-6 h-6 text-blue-600" />
@@ -228,7 +228,7 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link href="/dashboard/rentals" className="card hover:shadow-lg transition-shadow cursor-pointer">
+          <Link href="/dashboard/rentals" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-green-600" />
@@ -240,7 +240,7 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link href="/dashboard/book-online" className="card hover:shadow-lg transition-shadow cursor-pointer">
+          <Link href="/dashboard/book-online" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Globe className="w-6 h-6 text-purple-600" />
@@ -252,7 +252,7 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link href="/dashboard/customers" className="card hover:shadow-lg transition-shadow cursor-pointer">
+          <Link href="/dashboard/customers" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-orange-600" />

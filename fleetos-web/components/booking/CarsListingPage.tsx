@@ -88,7 +88,7 @@ export default function CarsListingPage({
         <div className="flex gap-8">
           {/* Filters Sidebar */}
           <aside className="w-64 flex-shrink-0 hidden lg:block">
-            <div className="card sticky top-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" sticky top-4">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Settings2 size={20} />
                 Φίλτρα
@@ -99,7 +99,7 @@ export default function CarsListingPage({
                 <div>
                   <label className="block text-sm font-semibold mb-2">Κιβώτιο</label>
                   <select
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value={filters.transmission}
                     onChange={(e) => setFilters({ ...filters, transmission: e.target.value })}
                   >
@@ -113,7 +113,7 @@ export default function CarsListingPage({
                 <div>
                   <label className="block text-sm font-semibold mb-2">Ελάχιστες Θέσεις</label>
                   <select
-                    className="input"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value={filters.minSeats}
                     onChange={(e) => setFilters({ ...filters, minSeats: Number(e.target.value) })}
                   >
@@ -145,7 +145,7 @@ export default function CarsListingPage({
                 {filteredCars.map((car) => (
                   <div
                     key={car.id}
-                    className="card group hover:shadow-xl transition-all cursor-pointer"
+                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" group hover:shadow-xl transition-all cursor-pointer"
                     onClick={() => handleSelectCar(car)}
                   >
                     {/* Image */}
@@ -193,7 +193,7 @@ export default function CarsListingPage({
 
                       {/* Select Button */}
                       <button
-                        className="btn btn-primary w-full mt-4"
+                        className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 w-full mt-4"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSelectCar(car);
