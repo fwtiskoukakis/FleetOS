@@ -78,10 +78,6 @@ export default function BookingHomePage({
             ) : (
               <FleetOSLogo variant="horizontal-light" size={140} showText={true} />
             )}
-                <FleetOSLogo variant="icon" size={40} />
-                <span className="text-xl font-bold text-gray-900">{companyName}</span>
-              </div>
-            )}
           </div>
         </div>
       </header>
