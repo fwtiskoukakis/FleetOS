@@ -145,7 +145,7 @@ export default function CarsListingPage({
                 {filteredCars.map((car) => (
                   <div
                     key={car.id}
-                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" group hover:shadow-xl transition-all cursor-pointer"
+                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 group hover:shadow-xl transition-all cursor-pointer"
                     onClick={() => handleSelectCar(car)}
                   >
                     {/* Image */}
