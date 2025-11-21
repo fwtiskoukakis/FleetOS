@@ -188,7 +188,7 @@ export default function ContractDetailsPage() {
     );
   }
   
-  const actualStatus = getActualContractStatus(contract.pickup_date, contract.dropoff_date, contract.pickup_time, contract.dropoff_time);
+  const actualStatus = getActualContractStatus(contract);
   const statusColor = getStatusColor(actualStatus);
   const rentalDays = calculateRentalDays();
   
