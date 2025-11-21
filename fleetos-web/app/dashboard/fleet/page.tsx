@@ -48,25 +48,62 @@ export default function FleetPage() {
         console.log('Organization ID after inference:', organizationId);
       }
 
-      // Build query: Show cars that match EITHER organization_id OR user_id
+      // Build queries: Fetch cars by organization_id AND by user_id, then combine
       // This ensures we see all cars belonging to the user, regardless of organization setup
-      let query = supabase
-        .from('cars')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      // Use OR logic: show cars where (organization_id matches OR user_id matches)
+      const queries: Promise<any>[] = [];
+      
+      // Always fetch by user_id
+      queries.push(
+        supabase
+          .from('cars')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+      );
+      
+      // Also fetch by organization_id if available
       if (organizationId) {
-        // If we have organization_id, show cars with matching org_id OR user_id
-        query = query.or(`organization_id.eq.${organizationId},user_id.eq.${user.id}`);
-        console.log('Filtering cars by organization_id OR user_id:', organizationId, user.id);
-      } else {
-        // If no organization_id, just filter by user_id
-        query = query.eq('user_id', user.id);
-        console.log('Filtering cars by user_id only:', user.id);
+        queries.push(
+          supabase
+            .from('cars')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+        );
       }
-
-      const { data, error } = await query;
+      
+      // Execute all queries in parallel
+      const results = await Promise.all(queries);
+      
+      // Combine results and remove duplicates
+      const allCars: any[] = [];
+      const seenIds = new Set<string>();
+      
+      for (const result of results) {
+        if (result.error) {
+          console.error('Error in one of the queries:', result.error);
+          continue;
+        }
+        
+        if (result.data) {
+          for (const car of result.data) {
+            if (!seenIds.has(car.id)) {
+              seenIds.add(car.id);
+              allCars.push(car);
+            }
+          }
+        }
+      }
+      
+      // Sort by created_at descending
+      allCars.sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      const data = allCars;
+      const error = null; // No error if we got here
 
       if (error) {
         console.error('Error loading cars:', error);
