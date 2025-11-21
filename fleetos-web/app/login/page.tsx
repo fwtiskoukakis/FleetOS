@@ -23,28 +23,44 @@ export default function LoginPage() {
       // Normalize email - same as mobile app
       const normalizedEmail = email.trim().toLowerCase();
       
+      console.log('Attempting login with email:', normalizedEmail);
+      
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
 
       if (authError) {
+        console.error('Login error:', authError);
         // Provide better error messages
         let errorMessage = authError.message;
         if (authError.message.includes('Email not confirmed')) {
           errorMessage = 'Please confirm your email before signing in. Check your inbox.';
         } else if (authError.message.includes('Invalid login credentials')) {
           errorMessage = 'Invalid email or password. Please try again.';
+        } else if (authError.message.includes('Invalid credentials')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
         }
         throw new Error(errorMessage);
       }
 
       if (data.user) {
-        // Redirect to dashboard - same as mobile app (no users table check)
-        router.push('/dashboard');
-        router.refresh();
+        console.log('Login successful, user:', data.user.email);
+        
+        // Check if session is set
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('Session after login:', sessionData?.session ? 'Set' : 'Not set');
+        
+        // Wait a bit for session to be set in cookies
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Force a hard redirect to ensure cookies are set
+        window.location.href = '/dashboard';
+      } else {
+        throw new Error('Login failed: No user data returned');
       }
     } catch (err: any) {
+      console.error('Login exception:', err);
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
