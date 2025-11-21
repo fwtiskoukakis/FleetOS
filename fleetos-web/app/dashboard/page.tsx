@@ -316,19 +316,29 @@ export default function DashboardPage() {
 
   async function loadActiveRentals(orgId: string) {
     try {
-      const { count, error } = await supabase
+      // Get all contracts for this organization (we need to check dates)
+      const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('*', { count: 'exact', head: true })
+        .select('pickup_date, dropoff_date, status')
         .eq('organization_id', orgId)
-        .in('status', ['active', 'pending']);
+        .in('status', ['active', 'pending', 'completed']); // Include completed in case some are still active
       
       if (error) {
         console.error('Error loading active rentals:', error);
         return;
       }
+
+      // Count active rentals: contracts where current date is between pickup_date and dropoff_date
+      const now = new Date();
+      const activeCount = contracts?.filter(contract => {
+        const pickupDate = new Date(contract.pickup_date);
+        const dropoffDate = new Date(contract.dropoff_date);
+        // Active if current date is between pickup and dropoff
+        return pickupDate <= now && dropoffDate >= now;
+      }).length || 0;
       
-      console.log('Active rentals for org', orgId, ':', count || 0);
-      setStats(prev => ({ ...prev, activeRentals: count || 0 }));
+      console.log('Active rentals for org', orgId, ':', activeCount);
+      setStats(prev => ({ ...prev, activeRentals: activeCount }));
     } catch (error) {
       console.error('Exception loading active rentals:', error);
     }
@@ -336,19 +346,28 @@ export default function DashboardPage() {
 
   async function loadActiveRentalsAll() {
     try {
-      // Load all active rentals (no organization filter) - same as mobile app
-      const { count, error } = await supabase
+      // Load all contracts (no organization filter) - same as mobile app
+      const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['active', 'pending']);
+        .select('pickup_date, dropoff_date, status')
+        .in('status', ['active', 'pending', 'completed']); // Include completed in case some are still active
       
       if (error) {
         console.error('Error loading active rentals (all):', error);
         return;
       }
+
+      // Count active rentals: contracts where current date is between pickup_date and dropoff_date
+      const now = new Date();
+      const activeCount = contracts?.filter(contract => {
+        const pickupDate = new Date(contract.pickup_date);
+        const dropoffDate = new Date(contract.dropoff_date);
+        // Active if current date is between pickup and dropoff
+        return pickupDate <= now && dropoffDate >= now;
+      }).length || 0;
       
-      console.log('Active rentals (all):', count || 0);
-      setStats(prev => ({ ...prev, activeRentals: count || 0 }));
+      console.log('Active rentals (all):', activeCount);
+      setStats(prev => ({ ...prev, activeRentals: activeCount }));
     } catch (error) {
       console.error('Exception loading active rentals (all):', error);
     }
