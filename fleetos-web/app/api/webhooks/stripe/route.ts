@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
  * Handle successful payment intent
  */
 async function handlePaymentIntentSucceeded(paymentIntent: any) {
+  const supabase = getSupabaseClient();
   const bookingId = paymentIntent.metadata?.bookingId;
 
   if (!bookingId) {
