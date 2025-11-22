@@ -204,6 +204,7 @@ async function calculatePricing(
   organizationId: string
 ): Promise<{ basePrice: number; pricePerDay: number } | null> {
   try {
+    const supabaseClient = getSupabaseClient();
     // Get pricing rules for this date range
     // Priority: car-specific pricing > category pricing
     const { data: pricingRules, error } = await supabaseClient
