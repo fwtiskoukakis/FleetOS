@@ -22,7 +22,7 @@ interface Booking {
 export default function PaymentPage({ 
   params 
 }: { 
-  params: { slug: string; bookingId: string } 
+  params: Promise<{ slug: string; bookingId: string }> 
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -30,19 +30,30 @@ export default function PaymentPage({
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'viva' | 'bank' | 'cash'>('stripe');
+  const [routeParams, setRouteParams] = useState<{ slug: string; bookingId: string } | null>(null);
+
+  // Resolve params
+  useEffect(() => {
+    params.then(resolved => {
+      setRouteParams(resolved);
+    });
+  }, [params]);
 
   useEffect(() => {
-    loadBooking();
-  }, []);
+    if (routeParams) {
+      loadBooking();
+    }
+  }, [routeParams]);
 
   async function loadBooking() {
+    if (!routeParams) return;
     try {
       setLoading(true);
       // In a real implementation, fetch booking from API
       // For now, we'll use the bookingId from params
       setBooking({
-        id: params.bookingId,
-        booking_number: `BK-${params.bookingId.substring(0, 8).toUpperCase()}`,
+        id: routeParams.bookingId,
+        booking_number: `BK-${routeParams.bookingId.substring(0, 8).toUpperCase()}`,
         total_price: 0, // Will be loaded from API
         amount_paid: 0,
         amount_remaining: 0,
@@ -75,7 +86,7 @@ export default function PaymentPage({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            bookingId: params.bookingId,
+            bookingId: routeParams.bookingId,
             amount: booking?.amount_remaining || booking?.total_price || 0,
           }),
         });
@@ -91,7 +102,7 @@ export default function PaymentPage({
         await processPaymentSuccess(data.paymentIntentId);
       } else if (paymentMethod === 'bank') {
         // Bank transfer - mark as pending
-        await fetch(`/api/v1/bookings/${params.bookingId}/payment`, {
+        await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -103,10 +114,10 @@ export default function PaymentPage({
           }),
         });
 
-        router.push(`/booking/${params.slug}/confirmation/${params.bookingId}?payment_method=bank`);
+        router.push(`/booking/${routeParams.slug}/confirmation/${routeParams.bookingId}?payment_method=bank`);
       } else if (paymentMethod === 'cash') {
         // Pay on arrival
-        await fetch(`/api/v1/bookings/${params.bookingId}/payment`, {
+        await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -118,7 +129,7 @@ export default function PaymentPage({
           }),
         });
 
-        router.push(`/booking/${params.slug}/confirmation/${params.bookingId}?payment_method=cash`);
+        router.push(`/booking/${routeParams.slug}/confirmation/${routeParams.bookingId}?payment_method=cash`);
       }
     } catch (err) {
       console.error('Payment error:', err);
@@ -146,7 +157,7 @@ export default function PaymentPage({
       throw new Error('Failed to process payment');
     }
 
-    router.push(`/booking/${params.slug}/confirmation/${params.bookingId}`);
+    router.push(`/booking/${routeParams.slug}/confirmation/${routeParams.bookingId}`);
   }
 
   function formatPrice(amount: number): string {
@@ -175,7 +186,7 @@ export default function PaymentPage({
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking Not Found</h2>
           <p className="text-gray-600 mb-4">The booking you're looking for doesn't exist or has expired.</p>
           <Link
-            href={`/booking/${params.slug}`}
+            href={routeParams ? `/booking/${routeParams.slug}` : '#'}
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Start New Booking
@@ -193,7 +204,7 @@ export default function PaymentPage({
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link 
-            href={`/booking/${params.slug}/book/${params.bookingId}`}
+            href={routeParams ? `/booking/${routeParams.slug}/book/${routeParams.bookingId}` : '#'}
             className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />

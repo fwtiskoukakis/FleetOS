@@ -10,14 +10,15 @@ export default async function CarsPage({
   params,
   searchParams,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
+  const { slug } = await params;
   // Get organization by slug
   const { data: org } = await supabase
     .from('organizations')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .eq('is_active', true)
     .single();
 

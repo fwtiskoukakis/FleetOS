@@ -12,11 +12,12 @@ export async function generateStaticParams() {
   return [];
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const { data: org } = await supabase
     .from('organizations')
     .select('company_name, trading_name, logo_url')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .eq('is_active', true)
     .single();
 
@@ -32,12 +33,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function BookingPage({ params }: { params: { slug: string } }) {
+export default async function BookingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   // Get organization by slug
   const { data: org, error: orgError } = await supabase
     .from('organizations')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .eq('is_active', true)
     .single();
 

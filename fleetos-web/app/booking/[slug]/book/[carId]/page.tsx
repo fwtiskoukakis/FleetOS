@@ -52,7 +52,7 @@ interface Insurance {
 export default function BookingFormPage({ 
   params 
 }: { 
-  params: { slug: string; carId: string } 
+  params: Promise<{ slug: string; carId: string }> 
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,6 +62,7 @@ export default function BookingFormPage({
   const [extras, setExtras] = useState<Extra[]>([]);
   const [insuranceTypes, setInsuranceTypes] = useState<Insurance[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [routeParams, setRouteParams] = useState<{ slug: string; carId: string } | null>(null);
 
   // Search params
   const pickupDate = searchParams.get('pickup_date') || '';
@@ -103,14 +104,22 @@ export default function BookingFormPage({
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [confirmAge, setConfirmAge] = useState(false);
 
+  // Resolve params
   useEffect(() => {
+    params.then(resolved => {
+      setRouteParams(resolved);
+    });
+  }, [params]);
+
+  useEffect(() => {
+    if (!routeParams) return;
     if (!pickupDate || !dropoffDate || !pickupLocationId || !dropoffLocationId) {
       setError('Missing required search parameters');
       setLoading(false);
       return;
     }
     loadCarDetails();
-  }, [carId, pickupDate, dropoffDate]);
+  }, [routeParams?.carId, routeParams?.slug, pickupDate, dropoffDate, pickupLocationId, dropoffLocationId]);
 
   useEffect(() => {
     if (car && extras.length > 0 && insuranceTypes.length > 0) {
@@ -119,12 +128,13 @@ export default function BookingFormPage({
   }, [selectedExtras, selectedInsurance, car, extras, insuranceTypes]);
 
   async function loadCarDetails() {
+    if (!routeParams) return;
     try {
       setLoading(true);
       setError(null);
 
       const response = await fetch(
-        `/api/v1/organizations/${params.slug}/cars/${params.carId}?pickup_date=${pickupDate}&dropoff_date=${dropoffDate}`
+        `/api/v1/organizations/${routeParams.slug}/cars/${routeParams.carId}?pickup_date=${pickupDate}&dropoff_date=${dropoffDate}`
       );
 
       if (!response.ok) {
@@ -244,13 +254,14 @@ export default function BookingFormPage({
         .filter(([_, quantity]) => quantity > 0)
         .map(([extra_id, quantity]) => ({ extra_id, quantity }));
 
-      const response = await fetch(`/api/v1/organizations/${params.slug}/bookings`, {
+      if (!routeParams) return;
+      const response = await fetch(`/api/v1/organizations/${routeParams.slug}/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          car_id: params.carId,
+          car_id: routeParams.carId,
           pickup_date: pickupDate,
           pickup_time: pickupTime,
           pickup_location_id: pickupLocationId,
@@ -294,7 +305,7 @@ export default function BookingFormPage({
       if (data.payment_url) {
         router.push(data.payment_url);
       } else {
-        router.push(`/booking/${params.slug}/confirmation/${data.booking.id}`);
+        router.push(`/booking/${routeParams.slug}/confirmation/${data.booking.id}`);
       }
     } catch (err) {
       console.error('Error creating booking:', err);
@@ -338,7 +349,7 @@ export default function BookingFormPage({
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <Link
-            href={`/booking/${params.slug}`}
+            href={routeParams ? `/booking/${routeParams.slug}` : '#'}
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go Back
@@ -358,7 +369,7 @@ export default function BookingFormPage({
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link 
-            href={`/booking/${params.slug}/search?pickup_date=${pickupDate}&pickup_time=${pickupTime}&pickup_location_id=${pickupLocationId}&dropoff_date=${dropoffDate}&dropoff_time=${dropoffTime}&dropoff_location_id=${dropoffLocationId}`}
+            href={routeParams ? `/booking/${routeParams.slug}/search?pickup_date=${pickupDate}&pickup_time=${pickupTime}&pickup_location_id=${pickupLocationId}&dropoff_date=${dropoffDate}&dropoff_time=${dropoffTime}&dropoff_location_id=${dropoffLocationId}` : '#'}
             className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -828,7 +839,7 @@ export default function BookingFormPage({
           {/* Submit Button */}
           <div className="flex gap-4">
             <Link
-              href={`/booking/${params.slug}/search?pickup_date=${pickupDate}&pickup_time=${pickupTime}&pickup_location_id=${pickupLocationId}&dropoff_date=${dropoffDate}&dropoff_time=${dropoffTime}&dropoff_location_id=${dropoffLocationId}`}
+              href={routeParams ? `/booking/${routeParams.slug}/search?pickup_date=${pickupDate}&pickup_time=${pickupTime}&pickup_location_id=${pickupLocationId}&dropoff_date=${dropoffDate}&dropoff_time=${dropoffTime}&dropoff_location_id=${dropoffLocationId}` : '#'}
               className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-center font-semibold"
             >
               Cancel

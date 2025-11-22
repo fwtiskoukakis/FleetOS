@@ -36,12 +36,13 @@ interface CarResult {
   };
 }
 
-export default function SearchResultsPage({ params }: { params: { slug: string } }) {
+export default function SearchResultsPage({ params }: { params: Promise<{ slug: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [cars, setCars] = useState<CarResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [routeParams, setRouteParams] = useState<{ slug: string } | null>(null);
 
   const pickupDate = searchParams.get('pickup_date');
   const pickupTime = searchParams.get('pickup_time');
@@ -50,7 +51,15 @@ export default function SearchResultsPage({ params }: { params: { slug: string }
   const dropoffTime = searchParams.get('dropoff_time');
   const dropoffLocationId = searchParams.get('dropoff_location_id');
 
+  // Resolve params
   useEffect(() => {
+    params.then(resolved => {
+      setRouteParams(resolved);
+    });
+  }, [params]);
+
+  useEffect(() => {
+    if (!routeParams) return;
     if (!pickupDate || !dropoffDate || !pickupLocationId || !dropoffLocationId) {
       setError('Missing required search parameters');
       setLoading(false);
@@ -58,14 +67,15 @@ export default function SearchResultsPage({ params }: { params: { slug: string }
     }
 
     loadAvailableCars();
-  }, [pickupDate, dropoffDate, pickupLocationId, dropoffLocationId]);
+  }, [routeParams?.slug, pickupDate, dropoffDate, pickupLocationId, dropoffLocationId]);
 
   async function loadAvailableCars() {
+    if (!routeParams) return;
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/v1/organizations/${params.slug}/cars/search`, {
+      const response = await fetch(`/api/v1/organizations/${routeParams.slug}/cars/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +139,7 @@ export default function SearchResultsPage({ params }: { params: { slug: string }
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <Link
-            href={`/booking/${params.slug}`}
+            href={routeParams ? `/booking/${routeParams.slug}` : '#'}
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Again
@@ -189,7 +199,7 @@ export default function SearchResultsPage({ params }: { params: { slug: string }
               Sorry, there are no cars available for the selected dates and locations.
             </p>
             <Link
-              href={`/booking/${params.slug}`}
+              href={routeParams ? `/booking/${routeParams.slug}` : '#'}
               className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Modify Search
@@ -255,7 +265,7 @@ export default function SearchResultsPage({ params }: { params: { slug: string }
 
                   {/* Book Button */}
                   <Link
-                    href={`/booking/${params.slug}/book/${car.id}?pickup_date=${pickupDate}&pickup_time=${pickupTime || '10:00'}&pickup_location_id=${pickupLocationId}&dropoff_date=${dropoffDate}&dropoff_time=${dropoffTime || '10:00'}&dropoff_location_id=${dropoffLocationId}`}
+                    href={routeParams ? `/booking/${routeParams.slug}/book/${car.id}?pickup_date=${pickupDate}&pickup_time=${pickupTime || '10:00'}&pickup_location_id=${pickupLocationId}&dropoff_date=${dropoffDate}&dropoff_time=${dropoffTime || '10:00'}&dropoff_location_id=${dropoffLocationId}` : '#'}
                     className="mt-4 w-full bg-blue-600 text-white text-center py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold block"
                   >
                     Book Now

@@ -26,28 +26,39 @@ interface Booking {
 export default function ConfirmationPage({ 
   params 
 }: { 
-  params: { slug: string; bookingId: string } 
+  params: Promise<{ slug: string; bookingId: string }> 
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [routeParams, setRouteParams] = useState<{ slug: string; bookingId: string } | null>(null);
 
   const paymentMethod = searchParams.get('payment_method') || 'card';
 
+  // Resolve params
   useEffect(() => {
-    loadBooking();
-  }, []);
+    params.then(resolved => {
+      setRouteParams(resolved);
+    });
+  }, [params]);
+
+  useEffect(() => {
+    if (routeParams) {
+      loadBooking();
+    }
+  }, [routeParams]);
 
   async function loadBooking() {
+    if (!routeParams) return;
     try {
       setLoading(true);
       // In a real implementation, fetch booking from API
       // For now, we'll use mock data
       setBooking({
-        id: params.bookingId,
-        booking_number: `BK-${params.bookingId.substring(0, 8).toUpperCase()}`,
+        id: routeParams.bookingId,
+        booking_number: `BK-${routeParams.bookingId.substring(0, 8).toUpperCase()}`,
         total_price: 450.00,
         amount_paid: 450.00,
         payment_status: paymentMethod === 'cash' ? 'pending' : 'fully_paid',
@@ -103,7 +114,7 @@ export default function ConfirmationPage({
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error || 'Booking not found'}</p>
           <Link
-            href={`/booking/${params.slug}`}
+            href={routeParams ? `/booking/${routeParams.slug}` : '#'}
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go Home
@@ -211,7 +222,7 @@ export default function ConfirmationPage({
             Download Receipt
           </button>
           <Link
-            href={`/booking/${params.slug}`}
+            href={routeParams ? `/booking/${routeParams.slug}` : '#'}
             className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center gap-2"
           >
             <Home className="w-5 h-5" />
