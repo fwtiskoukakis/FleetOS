@@ -229,47 +229,76 @@ async function createVivaWalletCheckout(params: {
     hasApiSecret: !!params.apiSecret,
   });
   
-  // Try each endpoint until one works
+  // Try each endpoint with different authentication methods
   let tokenResponse: Response | null = null;
   let tokenUrl = '';
   let lastError: string = '';
+  let usedAuthMethod = '';
+  
+  // Try both authentication methods: Basic Auth header and credentials in body
+  const authMethods = [
+    { 
+      name: 'Basic Auth Header',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${credentials}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+      }),
+    },
+    {
+      name: 'Credentials in Body',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: params.apiKey,
+        client_secret: params.apiSecret,
+      }),
+    },
+  ];
   
   for (const endpoint of tokenEndpoints) {
-    try {
-      tokenUrl = endpoint;
-      console.log(`Trying Viva Wallet OAuth endpoint: ${tokenUrl}`);
-      
-      tokenResponse = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${credentials}`,
-        },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-        }),
-      });
-      
-      // If we got a successful response or a clear error (not 404), stop trying
-      if (tokenResponse.ok || (tokenResponse.status !== 404 && tokenResponse.status !== 0)) {
-        console.log(`Endpoint ${tokenUrl} returned status ${tokenResponse.status}`);
-        break;
-      }
-      
-      // If 404, try next endpoint
-      if (tokenResponse.status === 404) {
-        console.log(`Endpoint ${tokenUrl} returned 404, trying next...`);
-        lastError = `404 Not Found: ${tokenUrl}`;
+    for (const authMethod of authMethods) {
+      try {
+        tokenUrl = endpoint;
+        usedAuthMethod = authMethod.name;
+        console.log(`Trying Viva Wallet OAuth endpoint: ${tokenUrl} with ${authMethod.name}`);
+        
+        tokenResponse = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: authMethod.headers as HeadersInit,
+          body: authMethod.body,
+        });
+        
+        // If we got a successful response or a clear error (not 404), stop trying
+        if (tokenResponse.ok || (tokenResponse.status !== 404 && tokenResponse.status !== 0)) {
+          console.log(`Endpoint ${tokenUrl} with ${authMethod.name} returned status ${tokenResponse.status}`);
+          break;
+        }
+        
+        // If 404, try next endpoint/auth method
+        if (tokenResponse.status === 404) {
+          console.log(`Endpoint ${tokenUrl} with ${authMethod.name} returned 404, trying next...`);
+          lastError = `404 Not Found: ${tokenUrl} (${authMethod.name})`;
+          tokenResponse = null;
+          continue;
+        }
+        
+        break; // Got a response (even if error), stop trying
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+        console.log(`Error trying ${tokenUrl} with ${authMethod.name}: ${lastError}`);
         tokenResponse = null;
         continue;
       }
-      
-      break; // Got a response (even if error), stop trying
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-      console.log(`Error trying ${tokenUrl}: ${lastError}`);
-      tokenResponse = null;
-      continue;
+    }
+    
+    // If we got a valid response, break out of endpoint loop too
+    if (tokenResponse && (tokenResponse.ok || tokenResponse.status !== 404)) {
+      break;
     }
   }
   
@@ -302,10 +331,20 @@ async function createVivaWalletCheckout(params: {
   if (!tokenContentType?.includes('application/json')) {
     const errorText = await tokenResponse.text();
     console.error('Viva Wallet token response is not JSON:', {
+      status: tokenResponse.status,
+      statusText: tokenResponse.statusText,
       contentType: tokenContentType,
-      response: errorText.substring(0, 500),
+      url: tokenUrl,
+      response: errorText.substring(0, 1000), // Get more of the HTML to see what's wrong
     });
-    throw new Error(`Viva Wallet returned non-JSON response. Content-Type: ${tokenContentType}. This may indicate an incorrect endpoint or authentication error.`);
+    
+    // Extract any useful info from HTML response
+    const htmlTitleMatch = errorText.match(/<title>(.*?)<\/title>/i);
+    const htmlBodyMatch = errorText.match(/<body[^>]*>(.*?)<\/body>/is);
+    const title = htmlTitleMatch ? htmlTitleMatch[1] : 'Unknown';
+    const body = htmlBodyMatch ? htmlBodyMatch[1].replace(/<[^>]+>/g, ' ').substring(0, 200) : '';
+    
+    throw new Error(`Viva Wallet returned HTML response (not JSON) from ${tokenUrl}. Status: ${tokenResponse.status}. This usually means the endpoint doesn't exist or credentials are invalid. Page title: "${title}". Error: ${body || errorText.substring(0, 200)}`);
   }
 
   const tokenData = await tokenResponse.json();
