@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface DamagePoint {
-  id: string;
+  id?: string;
   x: number;
   y: number;
   view: 'front' | 'rear' | 'left' | 'right';

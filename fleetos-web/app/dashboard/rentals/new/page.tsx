@@ -804,7 +804,15 @@ export default function NewContractPage() {
                   setDamagePoints(damagePoints.slice(0, -1));
                 }
               }}
-              damagePoints={damagePoints}
+              damagePoints={damagePoints.map(dp => ({
+                id: dp.id || `damage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                x: dp.x,
+                y: dp.y,
+                view: dp.view,
+                description: dp.description,
+                severity: dp.severity,
+                markerType: dp.markerType,
+              }))}
               isEditable={true}
             />
           </div>
