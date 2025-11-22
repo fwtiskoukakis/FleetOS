@@ -43,33 +43,36 @@ export default function BookOnlinePage() {
       const organizationId = await getOrganizationId(user.id);
       
       // Build queries with organization filter
-      const queries = [
-        supabase.from('locations').select('id', { count: 'exact', head: true }),
-        supabase.from('car_categories').select('id', { count: 'exact', head: true }),
-        supabase.from('extra_options').select('id', { count: 'exact', head: true }),
-        supabase.from('insurance_types').select('id', { count: 'exact', head: true }),
-        supabase.from('payment_methods').select('id', { count: 'exact', head: true }),
-      ];
+      const locationsQuery = supabase.from('locations').select('id', { count: 'exact', head: true });
+      const categoriesQuery = supabase.from('car_categories').select('id', { count: 'exact', head: true });
+      const extrasQuery = supabase.from('extra_options').select('id', { count: 'exact', head: true });
+      const insuranceQuery = supabase.from('insurance_types').select('id', { count: 'exact', head: true });
+      const paymentsQuery = supabase.from('payment_methods').select('id', { count: 'exact', head: true });
 
       // Bookings query with organization filter
-      let bookingsQuery = supabase.from('online_bookings').select('id, total_cost, pickup_date, dropoff_date', { count: 'exact' });
-      if (organizationId) {
-        bookingsQuery = bookingsQuery.eq('organization_id', organizationId);
-      }
-      
-      queries.push(bookingsQuery);
+      const bookingsQueryBuilder = supabase.from('online_bookings').select('id, total_cost, pickup_date, dropoff_date', { count: 'exact' });
+      const bookingsQuery = organizationId 
+        ? bookingsQueryBuilder.eq('organization_id', organizationId)
+        : bookingsQueryBuilder;
 
-      // Available cars query
-      let carsQuery = supabase.from('booking_cars').select('id', { count: 'exact', head: true }).eq('is_available_for_booking', true).eq('is_active', true);
-      if (organizationId) {
-        carsQuery = carsQuery.eq('organization_id', organizationId);
-      }
-      queries.push(carsQuery);
+      // Available cars query with organization filter
+      const carsQueryBuilder = supabase.from('booking_cars').select('id', { count: 'exact', head: true }).eq('is_available_for_booking', true).eq('is_active', true);
+      const carsQuery = organizationId 
+        ? carsQueryBuilder.eq('organization_id', organizationId)
+        : carsQueryBuilder;
 
       const [
         locationsRes, categoriesRes, extrasRes, insuranceRes, paymentsRes, 
         bookingsRes, carsRes
-      ] = await Promise.all(queries);
+      ] = await Promise.all([
+        locationsQuery,
+        categoriesQuery,
+        extrasQuery,
+        insuranceQuery,
+        paymentsQuery,
+        bookingsQuery,
+        carsQuery,
+      ]);
 
       // Calculate active bookings and monthly revenue
       const now = new Date();
