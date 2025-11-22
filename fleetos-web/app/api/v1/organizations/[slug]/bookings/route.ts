@@ -437,7 +437,7 @@ async function calculateTotalPrice(
   // Calculate insurance price
   let insurancePrice = 0;
   if (selectedInsuranceId) {
-    const { data: insurance } = await supabase
+    const { data: insurance } = await supabaseClient
       .from('insurance_types')
       .select('price_per_day')
       .eq('id', selectedInsuranceId)
