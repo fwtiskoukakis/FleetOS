@@ -325,26 +325,33 @@ export default function ContractDetailsPage() {
       };
 
       // Create new contract
-      const newContractId = await saveContract({
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const newContract: Contract = {
+        userId: authUser.id,
         renterInfo,
         rentalPeriod,
         carInfo,
         carCondition,
         damagePoints: [],
-        photos: copyPhotos ? contractPhotos : [],
+        photoUris: copyPhotos ? contractPhotos : [],
         clientSignature: copySignature ? clientSignature : '',
-        clientSignaturePaths: copySignature && clientSignature ? [clientSignature] : [],
         observations: combinedObservations || undefined,
         status,
-      });
+      };
 
-      if (!newContractId) {
+      const savedContract = await saveContract(newContract);
+
+      if (!savedContract || !savedContract.id) {
         throw new Error('Failed to create renewal contract');
       }
 
       alert('Contract renewal created successfully!');
       handleCloseRenewModal();
-      router.push(`/dashboard/rentals/${newContractId}`);
+      router.push(`/dashboard/rentals/${savedContract.id}`);
     } catch (error: any) {
       console.error('Error renewing contract:', error);
       alert('Failed to create renewal contract: ' + (error.message || 'Unknown error'));
