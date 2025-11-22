@@ -4,8 +4,31 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Users, Mail, Phone, Edit, Save, X, ArrowLeft, Calendar, FileText, DollarSign } from 'lucide-react';
+import { getOrganizationId } from '@/lib/organization';
+import { Users, Mail, Phone, Edit, Save, X, ArrowLeft, Calendar, FileText, DollarSign, Clock, MessageSquare, Star, Ban, CheckCircle2 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
+import { format, parseISO } from 'date-fns';
+import { el } from 'date-fns/locale';
+
+interface RentalHistoryItem {
+  id: string;
+  vehicle: string;
+  date: string;
+  cost: number;
+  duration: number;
+}
+
+interface CommunicationHistoryItem {
+  id: string;
+  communication_type: 'email' | 'sms' | 'phone' | 'other';
+  message: string;
+  created_at: string;
+}
+
+interface CustomerHistory {
+  rentals: RentalHistoryItem[];
+  communications: CommunicationHistoryItem[];
+}
 
 export default function CustomerDetailsPage() {
   const router = useRouter();
@@ -17,6 +40,7 @@ export default function CustomerDetailsPage() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const [customer, setCustomer] = useState<any>(null);
+  const [customerHistory, setCustomerHistory] = useState<CustomerHistory>({ rentals: [], communications: [] });
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -25,40 +49,35 @@ export default function CustomerDetailsPage() {
     address: '',
     driver_license_number: '',
     notes: '',
+    vip_status: false,
+    blacklist_status: false,
   });
 
   useEffect(() => {
-    loadCustomer();
-    loadContracts();
+    if (customerId) {
+      loadCustomer();
+      loadCustomerHistory();
+    }
   }, [customerId]);
 
   async function loadCustomer() {
     try {
       setLoading(true);
       
-      // Get user's organization_id
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setError('Not authenticated');
         return;
       }
 
-      // Get user's organization_id
-      const { data: userData } = await supabase
-        .from('users')
-        .select('organization_id')
-        .eq('id', user.id)
-        .maybeSingle();
+      const organizationId = await getOrganizationId(user.id);
 
-      const organizationId = userData?.organization_id;
-
-      // Build query with organization filter
+      // Try to load from customer_profiles first
       let query = supabase
         .from('customer_profiles')
         .select('*')
         .eq('id', customerId);
 
-      // Filter by organization_id if available
       if (organizationId) {
         query = query.eq('organization_id', organizationId);
       }
@@ -75,6 +94,8 @@ export default function CustomerDetailsPage() {
           address: profileData.address || '',
           driver_license_number: profileData.driver_license_number || '',
           notes: profileData.notes || '',
+          vip_status: profileData.vip_status || false,
+          blacklist_status: profileData.blacklist_status || false,
         });
         setLoading(false);
         return;
@@ -87,7 +108,6 @@ export default function CustomerDetailsPage() {
         .or(`renter_email.eq.${customerId},renter_phone_number.eq.${customerId}`)
         .limit(1);
 
-      // Filter by organization_id if available, otherwise filter by user_id
       if (organizationId) {
         contractsQuery = contractsQuery.eq('organization_id', organizationId);
       } else {
@@ -97,7 +117,6 @@ export default function CustomerDetailsPage() {
       const { data: contracts, error: contractsError } = await contractsQuery.maybeSingle();
 
       if (contracts) {
-        // Create customer object from contract data
         const customerFromContract = {
           id: customerId,
           full_name: contracts.renter_full_name || '',
@@ -107,17 +126,13 @@ export default function CustomerDetailsPage() {
           address: contracts.renter_address || '',
           driver_license_number: contracts.renter_driver_license_number || '',
           notes: '',
+          vip_status: false,
+          blacklist_status: false,
         };
         
         setCustomer(customerFromContract);
         setFormData({
-          full_name: customerFromContract.full_name,
-          email: customerFromContract.email,
-          phone_primary: customerFromContract.phone_primary,
-          id_number: customerFromContract.id_number,
-          address: customerFromContract.address,
-          driver_license_number: customerFromContract.driver_license_number,
-          notes: customerFromContract.notes,
+          ...customerFromContract,
         });
       }
     } catch (error) {
@@ -127,14 +142,60 @@ export default function CustomerDetailsPage() {
     }
   }
 
-  async function loadContracts() {
-    // Load contracts for this customer to show stats
-    // This will be used to show rental history
+  async function loadCustomerHistory() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const organizationId = await getOrganizationId(user.id);
+
+      // Load rental history from contracts
+      let contractsQuery = supabase
+        .from('contracts')
+        .select('id, pickup_date, dropoff_date, total_cost, car_make_model, car_license_plate')
+        .or(`renter_email.eq.${customerId},renter_phone_number.eq.${customerId}`)
+        .order('pickup_date', { ascending: false })
+        .limit(5);
+
+      if (organizationId) {
+        contractsQuery = contractsQuery.eq('organization_id', organizationId);
+      } else {
+        contractsQuery = contractsQuery.eq('user_id', user.id);
+      }
+
+      const { data: contracts, error: contractsError } = await contractsQuery;
+
+      const rentals: RentalHistoryItem[] = (contracts || []).map((contract: any) => {
+        const pickupDate = contract.pickup_date ? parseISO(contract.pickup_date) : new Date();
+        const dropoffDate = contract.dropoff_date ? parseISO(contract.dropoff_date) : new Date();
+        const duration = Math.max(1, Math.ceil((dropoffDate.getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        return {
+          id: contract.id,
+          vehicle: contract.car_make_model || contract.car_license_plate || 'Unknown',
+          date: contract.pickup_date || new Date().toISOString(),
+          cost: contract.total_cost || 0,
+          duration,
+        };
+      });
+
+      // Load communication history (placeholder - this would need a communications table)
+      const communications: CommunicationHistoryItem[] = [];
+
+      setCustomerHistory({ rentals, communications });
+    } catch (error) {
+      console.error('Error loading customer history:', error);
+    }
   }
 
   async function handleSave() {
     try {
       setSaving(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const organizationId = await getOrganizationId(user.id);
 
       // Try to update customer_profiles first
       const { data: existingProfile } = await supabase
@@ -155,31 +216,12 @@ export default function CustomerDetailsPage() {
 
         if (error) throw error;
       } else {
-        // Create new profile from contract data
-        // Get organization_id from user or contracts
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
-
-        // Try to get organization_id from user or contracts
-        const { data: userData } = await supabase
-          .from('users')
-          .select('organization_id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        const { data: contractData } = await supabase
-          .from('contracts')
-          .select('organization_id')
-          .limit(1)
-          .maybeSingle();
-
-        const orgId = userData?.organization_id || contractData?.organization_id;
-
+        // Create new profile
         const { error } = await supabase
           .from('customer_profiles')
           .insert({
             id: customerId,
-            organization_id: orgId,
+            organization_id: organizationId,
             ...formData,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -210,9 +252,23 @@ export default function CustomerDetailsPage() {
         address: customer.address || '',
         driver_license_number: customer.driver_license_number || '',
         notes: customer.notes || '',
+        vip_status: customer.vip_status || false,
+        blacklist_status: customer.blacklist_status || false,
       });
     }
     setEditing(false);
+  }
+
+  function getCustomerStatusColor() {
+    if (customer?.blacklist_status) return 'text-red-600 bg-red-50 border-red-600';
+    if (customer?.vip_status) return 'text-yellow-600 bg-yellow-50 border-yellow-600';
+    return 'text-gray-600 bg-gray-50 border-gray-600';
+  }
+
+  function getCustomerStatusLabel() {
+    if (customer?.blacklist_status) return 'Blacklist';
+    if (customer?.vip_status) return 'VIP';
+    return 'Regular';
   }
 
   if (loading) {
@@ -301,17 +357,8 @@ export default function CustomerDetailsPage() {
             <Link href="/dashboard" className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Dashboard
             </Link>
-            <Link href="/dashboard/fleet" className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
-              Fleet
-            </Link>
-            <Link href="/dashboard/rentals" className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
-              Rentals
-            </Link>
             <Link href="/dashboard/customers" className="border-b-2 border-blue-600 py-4 px-1 text-sm font-medium text-blue-600 whitespace-nowrap">
               Customers
-            </Link>
-            <Link href="/dashboard/book-online" className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
-              Book Online
             </Link>
           </div>
         </div>
@@ -319,11 +366,33 @@ export default function CustomerDetailsPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-4xl">
-        {/* Customer Card */}
+        {/* Customer Info Card */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Customer Information</h2>
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-4 flex-1">
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl font-bold text-blue-600">
+                  {customer.full_name?.charAt(0).toUpperCase() || '?'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">{customer.full_name || 'Unknown'}</h2>
+                <p className="text-gray-600 mb-1 flex items-center gap-2">
+                  <Mail size={16} className="text-gray-400" />
+                  {customer.email || 'No email'}
+                </p>
+                <p className="text-gray-600 flex items-center gap-2">
+                  <Phone size={16} className="text-gray-400" />
+                  {customer.phone_primary || 'No phone'}
+                </p>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getCustomerStatusColor()}`}>
+                {getCustomerStatusLabel()}
+              </div>
+            </div>
+          </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 pt-6 border-t border-gray-200">
             {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -426,6 +495,42 @@ export default function CustomerDetailsPage() {
               )}
             </div>
 
+            {/* VIP/Blacklist Status */}
+            {editing && (
+              <div className="space-y-3 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Star size={16} className="text-yellow-500" />
+                    VIP Status
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.vip_status}
+                      onChange={(e) => setFormData({ ...formData, vip_status: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Ban size={16} className="text-red-500" />
+                    Blacklist Status
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.blacklist_status}
+                      onChange={(e) => setFormData({ ...formData, blacklist_status: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -445,15 +550,62 @@ export default function CustomerDetailsPage() {
         </div>
 
         {/* Rental History */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText size={24} />
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <FileText size={20} />
             Rental History
           </h2>
-          <p className="text-gray-600">Rental history will be displayed here</p>
+          {customerHistory.rentals.length === 0 ? (
+            <p className="text-gray-500 text-center py-8 italic">No rental history</p>
+          ) : (
+            <div className="space-y-4">
+              {customerHistory.rentals.map((rental) => (
+                <div key={rental.id} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">{rental.vehicle}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {format(parseISO(rental.date), 'dd/MM/yyyy', { locale: el })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-blue-600">€{rental.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-gray-500 mt-1">{rental.duration} days</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Communication History */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <MessageSquare size={20} />
+            Communication History
+          </h2>
+          {customerHistory.communications.length === 0 ? (
+            <p className="text-gray-500 text-center py-8 italic">No communication history</p>
+          ) : (
+            <div className="space-y-4">
+              {customerHistory.communications.map((comm) => (
+                <div key={comm.id} className="py-3 border-b border-gray-200 last:border-b-0">
+                  <div className="mb-2">
+                    <p className="text-sm font-semibold text-blue-600 capitalize">
+                      {comm.communication_type === 'email' ? 'Email' :
+                       comm.communication_type === 'sms' ? 'SMS' :
+                       comm.communication_type === 'phone' ? 'Phone' : comm.communication_type}
+                    </p>
+                    <p className="text-sm text-gray-700 mt-1">{comm.message}</p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {format(parseISO(comm.created_at), 'dd/MM/yyyy HH:mm', { locale: el })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
 }
-
