@@ -558,7 +558,6 @@ export default function InsurancePage() {
                 </label>
               </div>
               </div>
-              </div>
             </div>
 
             {/* Modal Footer - Fixed at bottom with extra padding for tab bar */}

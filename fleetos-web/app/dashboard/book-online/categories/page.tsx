@@ -529,7 +529,6 @@ export default function CategoriesPage() {
                 </label>
               </div>
               </div>
-              </div>
             </div>
 
             {/* Modal Footer - Fixed at bottom with extra padding for tab bar */}
