@@ -62,13 +62,26 @@ export async function POST(request: NextRequest) {
     // Process based on provider
     if (provider === 'viva_wallet') {
       // Viva Wallet integration
-      const apiKey = paymentMethod.api_key_encrypted || paymentMethod.api_key;
-      const apiSecret = paymentMethod.api_secret_encrypted || paymentMethod.api_secret;
-      const merchantId = paymentMethod.merchant_id;
+      // Try both field names in case they exist in different formats
+      const apiKey = paymentMethod.api_key_encrypted || paymentMethod.api_key || null;
+      const apiSecret = paymentMethod.api_secret_encrypted || paymentMethod.api_secret || null;
+      const merchantId = paymentMethod.merchant_id || null;
 
-      if (!apiKey || !apiSecret) {
+      console.log('Viva Wallet credentials check:', {
+        hasApiKey: !!apiKey,
+        hasApiSecret: !!apiSecret,
+        hasMerchantId: !!merchantId,
+        paymentMethodId: payment_method_id,
+        provider: paymentMethod.provider,
+      });
+
+      if (!apiKey || !apiSecret || apiKey.trim() === '' || apiSecret.trim() === '') {
+        console.error('Viva Wallet credentials missing or empty:', {
+          apiKey: apiKey ? '***' + apiKey.slice(-4) : 'MISSING',
+          apiSecret: apiSecret ? '***' + apiSecret.slice(-4) : 'MISSING',
+        });
         return NextResponse.json(
-          { error: 'Viva Wallet API credentials not configured' },
+          { error: 'Viva Wallet API credentials not configured. Please check your payment method settings and ensure Client ID and Client Secret are entered.' },
           { status: 400 }
         );
       }

@@ -159,17 +159,18 @@ export default function PaymentMethodsPage() {
       };
 
       // Add API credentials if provided (only update if new values are entered)
-      if (formData.api_key) {
-        methodData.api_key_encrypted = formData.api_key; // In production, encrypt this
+      // For new methods or when explicitly updating, save the credentials
+      if (formData.api_key && formData.api_key.trim() !== '') {
+        methodData.api_key_encrypted = formData.api_key.trim(); // In production, encrypt this
       }
-      if (formData.api_secret) {
-        methodData.api_secret_encrypted = formData.api_secret; // In production, encrypt this
+      if (formData.api_secret && formData.api_secret.trim() !== '') {
+        methodData.api_secret_encrypted = formData.api_secret.trim(); // In production, encrypt this
       }
-      if (formData.merchant_id) {
-        methodData.merchant_id = formData.merchant_id;
+      if (formData.merchant_id && formData.merchant_id.trim() !== '') {
+        methodData.merchant_id = formData.merchant_id.trim();
       }
-      if (formData.webhook_secret) {
-        methodData.webhook_secret = formData.webhook_secret;
+      if (formData.webhook_secret && formData.webhook_secret.trim() !== '') {
+        methodData.webhook_secret = formData.webhook_secret.trim();
       }
 
       if (organizationId) {
@@ -177,12 +178,24 @@ export default function PaymentMethodsPage() {
       }
 
       if (editingMethod) {
+        // Log what we're updating (without exposing secrets)
+        console.log('Updating payment method:', {
+          id: editingMethod.id,
+          provider: methodData.provider,
+          hasApiKey: !!(methodData.api_key_encrypted),
+          hasApiSecret: !!(methodData.api_secret_encrypted),
+          hasMerchantId: !!(methodData.merchant_id),
+        });
+
         const { error } = await supabase
           .from('payment_methods')
           .update(methodData)
           .eq('id', editingMethod.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating payment method:', error);
+          throw error;
+        }
         alert('Payment method updated successfully');
       } else {
         const { data: maxOrder } = await supabase
@@ -194,11 +207,22 @@ export default function PaymentMethodsPage() {
 
         methodData.display_order = (maxOrder?.display_order || 0) + 1;
 
+        // Log what we're creating (without exposing secrets)
+        console.log('Creating payment method:', {
+          provider: methodData.provider,
+          hasApiKey: !!(methodData.api_key_encrypted),
+          hasApiSecret: !!(methodData.api_secret_encrypted),
+          hasMerchantId: !!(methodData.merchant_id),
+        });
+
         const { error } = await supabase
           .from('payment_methods')
           .insert(methodData);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating payment method:', error);
+          throw error;
+        }
         alert('Payment method created successfully');
       }
 
