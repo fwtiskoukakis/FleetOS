@@ -200,21 +200,32 @@ async function createVivaWalletCheckout(params: {
   const isTestMode = params.apiKey.includes('test') || params.apiKey.includes('sandbox') || params.apiKey.startsWith('demo');
   
   // Viva Wallet API base URLs
-  // Try different endpoints - OAuth might be on main domain or API subdomain
-  const vivaMainBaseUrl = isTestMode 
-    ? 'https://demo.vivapayments.com' // Test/sandbox environment main domain
-    : 'https://www.vivapayments.com'; // Production environment main domain
-    
+  // OAuth token endpoint uses the "accounts" subdomain (not "api")
+  // According to official Viva Wallet documentation:
+  // Demo: https://demo-accounts.vivapayments.com/connect/token
+  // Production: https://accounts.vivapayments.com/connect/token
+  const vivaOAuthBaseUrl = isTestMode 
+    ? 'https://demo-accounts.vivapayments.com' // Test/sandbox environment OAuth
+    : 'https://accounts.vivapayments.com'; // Production environment OAuth
+  
+  // Orders API uses the "api" subdomain
   const vivaApiBaseUrl = isTestMode 
     ? 'https://demo-api.vivapayments.com' // Test/sandbox environment API
     : 'https://api.vivapayments.com'; // Production environment API
   
-  // Try OAuth endpoints in order: /connect/token is the standard, but might be on different base URLs
+  // OAuth token endpoint (correct endpoint from official documentation)
+  const tokenUrl = `${vivaOAuthBaseUrl}/connect/token`;
+  
+  // Use the correct OAuth endpoint from official Viva Wallet documentation
+  // Primary endpoint is accounts subdomain, fallback to others if needed
+  const vivaMainBaseUrl = isTestMode 
+    ? 'https://demo.vivapayments.com' // Test/sandbox environment main domain (fallback)
+    : 'https://www.vivapayments.com'; // Production environment main domain (fallback)
+  
   const tokenEndpoints = [
-    `${vivaMainBaseUrl}/connect/token`, // Main domain /connect/token (most common)
-    `${vivaApiBaseUrl}/connect/token`,  // API subdomain /connect/token
-    `${vivaMainBaseUrl}/oauth2/token`,  // Main domain /oauth2/token (fallback)
-    `${vivaApiBaseUrl}/oauth2/token`,   // API subdomain /oauth2/token (fallback)
+    tokenUrl, // Primary: accounts subdomain (official endpoint)
+    `${vivaMainBaseUrl}/connect/token`, // Fallback: main domain
+    `${vivaApiBaseUrl}/connect/token`,  // Fallback: API subdomain
   ];
   
   // Create Basic Auth header (Buffer is available in Node.js runtime)
@@ -222,8 +233,9 @@ async function createVivaWalletCheckout(params: {
   
   console.log('Attempting Viva Wallet authentication:', {
     isTestMode,
-    vivaMainBaseUrl,
+    vivaOAuthBaseUrl,
     vivaApiBaseUrl,
+    tokenUrl,
     tokenEndpoints,
     hasApiKey: !!params.apiKey,
     hasApiSecret: !!params.apiSecret,
