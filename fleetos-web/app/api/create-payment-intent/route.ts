@@ -340,7 +340,8 @@ async function createVivaWalletCheckout(params: {
     
     // Extract any useful info from HTML response
     const htmlTitleMatch = errorText.match(/<title>(.*?)<\/title>/i);
-    const htmlBodyMatch = errorText.match(/<body[^>]*>(.*?)<\/body>/is);
+    // Use [\s\S] instead of . with 's' flag for better compatibility
+    const htmlBodyMatch = errorText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     const title = htmlTitleMatch ? htmlTitleMatch[1] : 'Unknown';
     const body = htmlBodyMatch ? htmlBodyMatch[1].replace(/<[^>]+>/g, ' ').substring(0, 200) : '';
     
