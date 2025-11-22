@@ -134,10 +134,14 @@ export async function POST(request: NextRequest) {
       } catch (vivaError) {
         console.error('Viva Wallet checkout creation failed:', vivaError);
         const errorMessage = vivaError instanceof Error ? vivaError.message : 'Unknown error';
+        const errorStack = vivaError instanceof Error ? vivaError.stack : undefined;
+        
+        // Always return error details to help with debugging
         return NextResponse.json(
           { 
             error: 'Failed to create Viva Wallet checkout. Please check your API credentials.',
-            details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+            details: errorMessage,
+            stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
           },
           { status: 500 }
         );

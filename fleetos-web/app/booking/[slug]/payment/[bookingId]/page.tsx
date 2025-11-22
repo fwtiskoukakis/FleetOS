@@ -149,21 +149,37 @@ export default function PaymentPage({
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create Viva Wallet checkout');
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch (e) {
+            const text = await response.text();
+            errorData = { error: text || 'Failed to create payment intent' };
+          }
+          console.error('Payment intent creation failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+          const errorMsg = errorData.error || 'Failed to create Viva Wallet checkout';
+          const details = errorData.details ? ` Details: ${errorData.details}` : '';
+          throw new Error(`${errorMsg}${details}`);
         }
 
         const data = await response.json();
+        console.log('Payment intent created:', data);
         
         // Redirect to Viva Wallet checkout URL
         if (data.checkout_url) {
+          console.log('Redirecting to checkout URL:', data.checkout_url);
           window.location.href = data.checkout_url;
         } else if (data.clientSecret) {
           // If we get a client secret, redirect to Viva Wallet with it
           // Viva Wallet typically uses a checkout URL format
           throw new Error('Viva Wallet checkout URL not returned. Please check your API configuration.');
         } else {
-          throw new Error('Invalid response from payment API');
+          console.error('Invalid response from payment API:', data);
+          throw new Error('Invalid response from payment API. No checkout URL returned.');
         }
       } else if (selectedMethod.provider === 'stripe') {
         // Create Stripe payment intent
