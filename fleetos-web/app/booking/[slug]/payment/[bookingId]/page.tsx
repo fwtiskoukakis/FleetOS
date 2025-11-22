@@ -73,6 +73,10 @@ export default function PaymentPage({
   }
 
   async function handlePayment() {
+    if (!routeParams) {
+      setError('Route parameters not loaded');
+      return;
+    }
     try {
       setProcessing(true);
       setError(null);
@@ -101,6 +105,9 @@ export default function PaymentPage({
         // For now, simulate payment success
         await processPaymentSuccess(data.paymentIntentId);
       } else if (paymentMethod === 'bank') {
+        if (!routeParams) {
+          throw new Error('Route parameters not loaded');
+        }
         // Bank transfer - mark as pending
         await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
           method: 'POST',
@@ -116,6 +123,9 @@ export default function PaymentPage({
 
         router.push(`/booking/${routeParams.slug}/confirmation/${routeParams.bookingId}?payment_method=bank`);
       } else if (paymentMethod === 'cash') {
+        if (!routeParams) {
+          throw new Error('Route parameters not loaded');
+        }
         // Pay on arrival
         await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
           method: 'POST',
@@ -140,8 +150,11 @@ export default function PaymentPage({
   }
 
   async function processPaymentSuccess(paymentIntentId: string) {
+    if (!routeParams) {
+      throw new Error('Route parameters not loaded');
+    }
     // Update booking payment status
-    const response = await fetch(`/api/v1/bookings/${params.bookingId}/payment`, {
+    const response = await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
