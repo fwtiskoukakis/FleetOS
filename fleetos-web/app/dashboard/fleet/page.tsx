@@ -425,14 +425,14 @@ export default function FleetPage() {
             </button>
             {showViewDropdown && (
               <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[150px]">
-                {[
+                {([
                   ['list', 'List', List],
                   ['grid3', '3 Columns', LayoutGrid],
                   ['grid4', '4 Columns', LayoutGrid],
                   ['grid5', '5 Columns', LayoutGrid],
-                ].map(([style, label, Icon]) => (
+                ] as [string, string, any][]).map(([style, label, Icon]) => (
                   <button
-                    key={style}
+                    key={style as string}
                     onClick={() => {
                       setGridStyle(style as GridStyle);
                       setShowViewDropdown(false);
