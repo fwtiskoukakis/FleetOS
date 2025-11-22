@@ -199,21 +199,29 @@ async function createVivaWalletCheckout(params: {
   // Check if we're in test mode (credentials starting with specific patterns indicate test)
   const isTestMode = params.apiKey.includes('test') || params.apiKey.includes('sandbox') || params.apiKey.startsWith('demo');
   
-  // Viva Wallet API base URLs (different from website URLs)
-  // Demo: https://demo-api.vivapayments.com
-  // Production: https://api.vivapayments.com
+  // Viva Wallet API base URLs
+  // According to Viva Wallet documentation:
+  // Demo: https://demo.vivapayments.com
+  // Production: https://www.vivapayments.com
+  // The OAuth endpoint is /connect/token (not /oauth2/token)
+  const vivaBaseUrl = isTestMode 
+    ? 'https://demo.vivapayments.com' // Test/sandbox environment
+    : 'https://www.vivapayments.com'; // Production environment
+  
+  // OAuth token endpoint: /connect/token
+  const tokenUrl = `${vivaBaseUrl}/connect/token`;
+  
+  // API endpoint for orders (uses different base URL)
   const vivaApiBaseUrl = isTestMode 
     ? 'https://demo-api.vivapayments.com' // Test/sandbox environment API
     : 'https://api.vivapayments.com'; // Production environment API
-  
-  const tokenUrl = `${vivaApiBaseUrl}/oauth2/token`;
   
   // Create Basic Auth header (Buffer is available in Node.js runtime)
   const credentials = Buffer.from(`${params.apiKey}:${params.apiSecret}`).toString('base64');
   
   console.log('Attempting Viva Wallet authentication:', {
     isTestMode,
-    vivaApiBaseUrl,
+    vivaBaseUrl,
     tokenUrl,
     hasApiKey: !!params.apiKey,
     hasApiSecret: !!params.apiSecret,
