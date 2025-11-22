@@ -78,6 +78,7 @@ export async function POST(
     }
 
     // Get all active booking cars for this organization
+    const supabaseClient = getSupabaseClient();
     let carsQuery = supabaseClient
       .from('booking_cars')
       .select(`
