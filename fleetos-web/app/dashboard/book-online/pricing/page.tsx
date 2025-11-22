@@ -116,21 +116,35 @@ export default function PricingPage() {
       if (carsError) throw carsError;
       setCars(carsData || []);
 
-      // Load pricing rules
+      // Load pricing rules - filter by organization through cars/categories
+      // First get all pricing rules, then filter client-side by organization
       let pricingQuery = supabase
         .from('car_pricing')
         .select(`
           *,
-          category:car_categories(name_el),
-          car:booking_cars(make, model, license_plate)
+          category:car_categories(name_el, organization_id),
+          car:booking_cars(make, model, license_plate, organization_id)
         `)
         .order('start_date', { ascending: false });
 
-      if (organizationId) {
-        pricingQuery = pricingQuery.eq('organization_id', organizationId);
-      }
-
       const { data: pricingData, error: pricingError } = await pricingQuery;
+      
+      // Filter by organization client-side if needed
+      if (organizationId && pricingData) {
+        const filtered = pricingData.filter((rule: any) => {
+          if (rule.car_id && rule.car) {
+            return rule.car.organization_id === organizationId;
+          }
+          if (rule.category_id && rule.category) {
+            return rule.category.organization_id === organizationId;
+          }
+          return false;
+        });
+        
+        if (pricingError) throw pricingError;
+        setPricingRules(filtered || []);
+        return;
+      }
 
       if (pricingError) throw pricingError;
       setPricingRules(pricingData || []);
@@ -148,8 +162,8 @@ export default function PricingPage() {
       category_id: categories.length > 0 ? categories[0].id : '',
       car_id: '',
       start_date: format(new Date(), 'yyyy-MM-dd'),
-      end_date: format(new Date(), 'yyyy-MM-dd'),
-      price_per_day: '0',
+      end_date: format(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), // Default to 1 year from now
+      price_per_day: '50',
       min_rental_days: '1',
       weekly_discount_percent: '0',
       monthly_discount_percent: '0',
@@ -200,6 +214,31 @@ export default function PricingPage() {
 
       const organizationId = await getOrganizationId(user.id);
 
+      // Verify car/category belongs to organization
+      if (selectedType === 'car') {
+        const { data: carData } = await supabase
+          .from('booking_cars')
+          .select('organization_id')
+          .eq('id', formData.car_id)
+          .single();
+        
+        if (carData && organizationId && carData.organization_id !== organizationId) {
+          alert('This car does not belong to your organization');
+          return;
+        }
+      } else {
+        const { data: categoryData } = await supabase
+          .from('car_categories')
+          .select('organization_id')
+          .eq('id', formData.category_id)
+          .single();
+        
+        if (categoryData && organizationId && categoryData.organization_id !== organizationId) {
+          alert('This category does not belong to your organization');
+          return;
+        }
+      }
+
       const pricingData: any = {
         start_date: formData.start_date,
         end_date: formData.end_date,
@@ -207,11 +246,8 @@ export default function PricingPage() {
         min_rental_days: parseInt(formData.min_rental_days) || 1,
         weekly_discount_percent: parseFloat(formData.weekly_discount_percent) || 0,
         monthly_discount_percent: parseFloat(formData.monthly_discount_percent) || 0,
+        priority: selectedType === 'car' ? 10 : 0, // Car pricing has higher priority than category pricing
       };
-
-      if (organizationId) {
-        pricingData.organization_id = organizationId;
-      }
 
       if (selectedType === 'category') {
         pricingData.category_id = formData.category_id;

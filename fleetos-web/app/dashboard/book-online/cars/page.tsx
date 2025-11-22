@@ -7,9 +7,10 @@ import { supabase } from '@/lib/supabase';
 import { getOrganizationId } from '@/lib/organization';
 import { 
   Car, Plus, Edit, Trash2, X, Save, 
-  Camera, Star, CheckCircle2, XCircle, Tag
+  Camera, Star, CheckCircle2, XCircle, Tag, DollarSign
 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
+import { format } from 'date-fns';
 
 interface BookingCar {
   id: string;
@@ -43,6 +44,10 @@ export default function BookingCarsPage() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCar, setEditingCar] = useState<BookingCar | null>(null);
+  const [priceModalVisible, setPriceModalVisible] = useState(false);
+  const [selectedCarForPrice, setSelectedCarForPrice] = useState<BookingCar | null>(null);
+  const [quickPrice, setQuickPrice] = useState('');
+  const [savingPrice, setSavingPrice] = useState(false);
   
   const [formData, setFormData] = useState({
     make: '',
@@ -228,6 +233,106 @@ export default function BookingCarsPage() {
     }
   }
 
+  function openQuickPriceModal(car: BookingCar) {
+    setSelectedCarForPrice(car);
+    
+    // Load current price for this car if exists
+    loadCarPrice(car.id).then((price) => {
+      setQuickPrice(price ? price.toString() : '');
+    });
+    
+    setPriceModalVisible(true);
+  }
+
+  async function loadCarPrice(carId: string): Promise<number | null> {
+    try {
+      // Get the most recent pricing rule for this car
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { data, error } = await supabase
+        .from('car_pricing')
+        .select('price_per_day')
+        .eq('car_id', carId)
+        .lte('start_date', today)
+        .gte('end_date', today)
+        .order('priority', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.price_per_day || null;
+    } catch (error) {
+      console.error('Error loading car price:', error);
+      return null;
+    }
+  }
+
+  async function handleSaveQuickPrice() {
+    if (!selectedCarForPrice) return;
+    
+    const price = parseFloat(quickPrice);
+    if (!price || price <= 0) {
+      alert('Please enter a valid price (greater than 0)');
+      return;
+    }
+
+    try {
+      setSavingPrice(true);
+      
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const oneYearLater = format(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+
+      // Check if pricing rule exists for this car
+      const { data: existingRule } = await supabase
+        .from('car_pricing')
+        .select('id')
+        .eq('car_id', selectedCarForPrice.id)
+        .lte('start_date', today)
+        .gte('end_date', oneYearLater)
+        .limit(1)
+        .maybeSingle();
+
+      const pricingData = {
+        car_id: selectedCarForPrice.id,
+        category_id: null,
+        start_date: today,
+        end_date: oneYearLater,
+        price_per_day: price,
+        min_rental_days: 1,
+        weekly_discount_percent: 0,
+        monthly_discount_percent: 0,
+        priority: 10, // Car-specific pricing has higher priority
+      };
+
+      if (existingRule) {
+        // Update existing rule
+        const { error } = await supabase
+          .from('car_pricing')
+          .update(pricingData)
+          .eq('id', existingRule.id);
+
+        if (error) throw error;
+        alert('Price updated successfully!');
+      } else {
+        // Create new rule
+        const { error } = await supabase
+          .from('car_pricing')
+          .insert(pricingData);
+
+        if (error) throw error;
+        alert('Price set successfully!');
+      }
+
+      setPriceModalVisible(false);
+      setSelectedCarForPrice(null);
+      setQuickPrice('');
+    } catch (error) {
+      console.error('Error saving price:', error);
+      alert('Failed to save price. Please try again.');
+    } finally {
+      setSavingPrice(false);
+    }
+  }
+
   async function toggleAvailability(car: BookingCar) {
     try {
       const { error } = await supabase
@@ -312,6 +417,13 @@ export default function BookingCarsPage() {
                     )}
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => openQuickPriceModal(car)}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Set Price"
+                    >
+                      <DollarSign className="w-5 h-5" />
+                    </button>
                     <button
                       onClick={() => openEditModal(car)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -557,6 +669,84 @@ export default function BookingCarsPage() {
               >
                 <Save className="w-5 h-5" />
                 {editingCar ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Price Modal */}
+      {priceModalVisible && selectedCarForPrice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Set Price for {selectedCarForPrice.make} {selectedCarForPrice.model}
+              </h2>
+              <button
+                onClick={() => {
+                  setPriceModalVisible(false);
+                  setSelectedCarForPrice(null);
+                  setQuickPrice('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price Per Day (€) *
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quickPrice}
+                    onChange={(e) => setQuickPrice(e.target.value)}
+                    placeholder="50.00"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  This price will apply from today until 1 year from now. You can create date-specific pricing rules in the Pricing page.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setPriceModalVisible(false);
+                  setSelectedCarForPrice(null);
+                  setQuickPrice('');
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={savingPrice}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveQuickPrice}
+                disabled={savingPrice || !quickPrice || parseFloat(quickPrice) <= 0}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingPrice ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    Save Price
+                  </>
+                )}
               </button>
             </div>
           </div>
