@@ -336,33 +336,6 @@ export default function DamagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/dashboard">
-                <FleetOSLogo variant="icon" size={40} />
-              </Link>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Damages</h1>
-                <p className="text-sm text-gray-600">Track vehicle damages</p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                setRefreshing(true);
-                loadVehiclesWithDamages();
-              }}
-              disabled={refreshing}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search and Filters */}
