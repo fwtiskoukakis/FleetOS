@@ -475,7 +475,7 @@ async function calculateTotalPrice(
           }
 
           // Update discount usage
-          await supabase
+          await supabaseClient
             .from('discount_codes')
             .update({ times_used: discount.times_used + 1 })
             .eq('id', discount.id);
