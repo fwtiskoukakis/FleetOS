@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Supabase environment variables are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 /**
  * POST /api/v1/organizations/[slug]/cars/search
@@ -14,6 +21,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const supabase = getSupabaseClient();
     const { slug } = await params;
     const body = await request.json();
     const {
@@ -122,13 +130,13 @@ export async function POST(
       if (!pricing) continue; // Could not calculate pricing
 
       // Get location fees
-      const { data: pickupLocation } = await supabase
+      const { data: pickupLocation } = await supabaseClient
         .from('locations')
         .select('extra_pickup_fee')
         .eq('id', pickup_location_id)
         .single();
 
-      const { data: dropoffLocation } = await supabase
+      const { data: dropoffLocation } = await supabaseClient
         .from('locations')
         .select('extra_delivery_fee')
         .eq('id', dropoff_location_id)
