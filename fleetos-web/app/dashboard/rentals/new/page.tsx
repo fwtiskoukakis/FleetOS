@@ -811,7 +811,7 @@ export default function NewContractPage() {
                 view: dp.view,
                 description: dp.description,
                 severity: dp.severity,
-                markerType: dp.markerType,
+                markerType: dp.markerType as 'slight-scratch' | 'heavy-scratch' | 'bent' | 'broken' | undefined,
               }))}
               isEditable={true}
             />
