@@ -289,12 +289,10 @@ export default function ContractDetailsPage() {
       const renterInfo: RenterInfo = {
         fullName: contract.renter_name || '',
         email: contract.renter_email || '',
-        phone: contract.renter_phone_number || '',
+        phoneNumber: contract.renter_phone_number || '',
         address: contract.renter_address || '',
         idNumber: contract.renter_id_number || '',
-        licenseNumber: contract.renter_license_number || '',
-        licenseIssueDate: contract.renter_license_issue_date ? parseISO(contract.renter_license_issue_date) : undefined,
-        licenseExpiryDate: contract.renter_license_expiry_date ? parseISO(contract.renter_license_expiry_date) : undefined,
+        driverLicenseNumber: contract.renter_license_number || '',
       };
 
       const rentalPeriod: RentalPeriod = {
@@ -320,6 +318,7 @@ export default function ContractDetailsPage() {
 
       const carCondition: CarCondition = {
         fuelLevel: contract.fuel_level !== null && contract.fuel_level !== undefined ? contract.fuel_level : 8,
+        insuranceType: 'basic', // Default value - renewal contracts typically start with basic insurance
         exteriorCondition: contract.exterior_condition || 'good',
         interiorCondition: contract.interior_condition || 'good',
         mechanicalCondition: contract.mechanical_condition || 'good',
