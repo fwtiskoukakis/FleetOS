@@ -273,6 +273,37 @@ export default function BookingFormPage({
       return;
     }
 
+    // Validate payment method is selected
+    if (!paymentMethodId) {
+      setError('Please select a payment method');
+      return;
+    }
+
+    // Validate pricing breakdown exists and has valid amount
+    if (!pricingBreakdown) {
+      setError('Pricing information is not loaded. Please refresh the page and try again.');
+      console.error('Pricing breakdown is null');
+      return;
+    }
+
+    if (!pricingBreakdown.total || pricingBreakdown.total <= 1) {
+      setError(`Invalid pricing: Total is ${pricingBreakdown.total} EUR. Please set a price for this car or contact support.`);
+      console.error('Invalid pricing breakdown:', pricingBreakdown);
+      return;
+    }
+
+    // Ensure payment method is selected
+    if (!paymentMethodId || paymentMethodId.trim() === '') {
+      setError('Please select a payment method before proceeding.');
+      return;
+    }
+
+    // Validate route params
+    if (!routeParams || !routeParams.slug || !routeParams.carId) {
+      setError('Invalid booking parameters. Please refresh the page and try again.');
+      return;
+    }
+
     // Calculate age from date of birth
     let customerAge: number | undefined;
     if (customerDateOfBirth) {
@@ -341,19 +372,46 @@ export default function BookingFormPage({
 
       const data = await response.json();
 
+      console.log('Booking created successfully:', data);
+      console.log('Payment method ID:', paymentMethodId);
+      console.log('Payment URL:', data.payment_url);
+
       // Redirect to payment or confirmation
       // If payment method was selected, always go to payment page
-      if (paymentMethodId) {
-        router.push(`/booking/${routeParams.slug}/payment/${data.booking.id}`);
+      let redirectUrl: string | null = null;
+      
+      if (paymentMethodId && data.booking?.id) {
+        redirectUrl = `/booking/${routeParams.slug}/payment/${data.booking.id}`;
+        console.log('Redirecting to payment page:', redirectUrl);
       } else if (data.payment_url) {
-        router.push(data.payment_url);
+        redirectUrl = data.payment_url;
+        console.log('Redirecting to payment URL:', redirectUrl);
+      } else if (data.booking?.id) {
+        redirectUrl = `/booking/${routeParams.slug}/confirmation/${data.booking.id}`;
+        console.log('Redirecting to confirmation page:', redirectUrl);
       } else {
-        router.push(`/booking/${routeParams.slug}/confirmation/${data.booking.id}`);
+        throw new Error('Booking created but no booking ID returned');
+      }
+
+      // Use router.push with a fallback to window.location
+      if (redirectUrl) {
+        try {
+          router.push(redirectUrl);
+          // Fallback: force navigation after a short delay if router doesn't work
+          setTimeout(() => {
+            if (window.location.pathname !== redirectUrl) {
+              console.log('Router push may have failed, using window.location');
+              window.location.href = redirectUrl;
+            }
+          }, 500);
+        } catch (redirectError) {
+          console.error('Router push failed, using window.location:', redirectError);
+          window.location.href = redirectUrl;
+        }
       }
     } catch (err) {
       console.error('Error creating booking:', err);
       setError(err instanceof Error ? err.message : 'Failed to create booking');
-    } finally {
       setSaving(false);
     }
   }
