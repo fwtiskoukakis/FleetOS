@@ -107,7 +107,7 @@ export async function POST(
     
     for (const car of allCars || []) {
       // Check if car is available for these dates
-      const { data: availabilityCheck } = await supabase.rpc('is_car_available', {
+      const { data: availabilityCheck } = await supabaseClient.rpc('is_car_available', {
         p_car_id: car.id,
         p_start_date: pickup_date,
         p_end_date: dropoff_date,

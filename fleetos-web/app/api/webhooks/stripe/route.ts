@@ -172,6 +172,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
  * Handle failed payment intent
  */
 async function handlePaymentIntentFailed(paymentIntent: any) {
+  const supabase = getSupabaseClient();
   const bookingId = paymentIntent.metadata?.bookingId;
 
   if (!bookingId) {
@@ -199,6 +200,7 @@ async function handlePaymentIntentFailed(paymentIntent: any) {
  * Handle charge refunded
  */
 async function handleChargeRefunded(charge: any) {
+  const supabase = getSupabaseClient();
   const paymentIntentId = charge.payment_intent;
 
   if (!paymentIntentId) {
