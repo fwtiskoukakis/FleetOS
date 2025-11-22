@@ -154,7 +154,7 @@ export default function SearchResultsPage({ params }: { params: Promise<{ slug: 
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href={`/booking/${params.slug}`} className="text-blue-600 hover:text-blue-700">
+          <Link href={routeParams ? `/booking/${routeParams.slug}` : '#'} className="text-blue-600 hover:text-blue-700">
             ← Back to Search
           </Link>
         </div>
