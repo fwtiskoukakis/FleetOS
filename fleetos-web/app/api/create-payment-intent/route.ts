@@ -233,19 +233,21 @@ async function createVivaWalletCheckout(params: {
     }),
   });
 
+  // Check content type before processing
+  const tokenContentType = tokenResponse.headers.get('content-type');
+  
   if (!tokenResponse.ok) {
     const errorText = await tokenResponse.text();
-    const contentType = tokenResponse.headers.get('content-type');
     console.error('Viva Wallet token error:', {
       status: tokenResponse.status,
       statusText: tokenResponse.statusText,
-      contentType,
+      contentType: tokenContentType,
       error: errorText.substring(0, 500), // Limit error text length
       url: tokenUrl,
     });
     
     // If we got HTML, it's likely an error page
-    if (contentType?.includes('text/html')) {
+    if (tokenContentType?.includes('text/html')) {
       throw new Error(`Viva Wallet authentication failed with HTML response (${tokenResponse.status}). The endpoint may be incorrect or credentials are invalid. URL: ${tokenUrl}`);
     }
     
@@ -253,14 +255,13 @@ async function createVivaWalletCheckout(params: {
   }
 
   // Check if response is JSON before parsing
-  const contentType = tokenResponse.headers.get('content-type');
-  if (!contentType?.includes('application/json')) {
+  if (!tokenContentType?.includes('application/json')) {
     const errorText = await tokenResponse.text();
     console.error('Viva Wallet token response is not JSON:', {
-      contentType,
+      contentType: tokenContentType,
       response: errorText.substring(0, 500),
     });
-    throw new Error(`Viva Wallet returned non-JSON response. Content-Type: ${contentType}. This may indicate an incorrect endpoint or authentication error.`);
+    throw new Error(`Viva Wallet returned non-JSON response. Content-Type: ${tokenContentType}. This may indicate an incorrect endpoint or authentication error.`);
   }
 
   const tokenData = await tokenResponse.json();
@@ -327,20 +328,22 @@ async function createVivaWalletCheckout(params: {
     body: JSON.stringify(orderData),
   });
 
+  // Check content type before processing
+  const orderContentType = orderResponse.headers.get('content-type');
+  
   if (!orderResponse.ok) {
     const errorText = await orderResponse.text();
-    const contentType = orderResponse.headers.get('content-type');
     console.error('Viva Wallet order creation error:', {
       status: orderResponse.status,
       statusText: orderResponse.statusText,
-      contentType,
+      contentType: orderContentType,
       error: errorText.substring(0, 500),
       orderData,
       url: orderUrl,
     });
     
     // If we got HTML, it's likely an error page
-    if (contentType?.includes('text/html')) {
+    if (orderContentType?.includes('text/html')) {
       throw new Error(`Viva Wallet order creation failed with HTML response (${orderResponse.status}). The endpoint may be incorrect. URL: ${orderUrl}`);
     }
     
@@ -348,14 +351,13 @@ async function createVivaWalletCheckout(params: {
   }
 
   // Check if response is JSON before parsing
-  const contentType = orderResponse.headers.get('content-type');
-  if (!contentType?.includes('application/json')) {
+  if (!orderContentType?.includes('application/json')) {
     const errorText = await orderResponse.text();
     console.error('Viva Wallet order response is not JSON:', {
-      contentType,
+      contentType: orderContentType,
       response: errorText.substring(0, 500),
     });
-    throw new Error(`Viva Wallet returned non-JSON response for order creation. Content-Type: ${contentType}.`);
+    throw new Error(`Viva Wallet returned non-JSON response for order creation. Content-Type: ${orderContentType}.`);
   }
 
   const orderResult = await orderResponse.json();
