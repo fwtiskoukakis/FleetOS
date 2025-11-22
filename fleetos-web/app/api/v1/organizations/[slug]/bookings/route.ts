@@ -451,7 +451,7 @@ async function calculateTotalPrice(
   // Calculate discount
   let discountAmount = 0;
   if (discountCode) {
-    const { data: discount } = await supabase
+    const { data: discount } = await supabaseClient
       .from('discount_codes')
       .select('*')
       .eq('code', discountCode.toUpperCase())
