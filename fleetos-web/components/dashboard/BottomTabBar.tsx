@@ -51,8 +51,8 @@ export function BottomTabBar() {
   }
 
   return (
-    <div className="fixed bottom-4 left-0 right-0 z-50 px-4 pointer-events-none">
-      <div className="max-w-md mx-auto">
+    <div className="fixed bottom-4 left-0 right-0 z-50 px-4">
+      <div className="max-w-md mx-auto pointer-events-none">
         {/* Glass morphism container */}
         <div className="relative backdrop-blur-xl bg-white/18 dark:bg-gray-900/85 rounded-[36px] border border-white/35 dark:border-gray-700/50 shadow-lg shadow-blue-500/10 overflow-hidden">
           {/* Glass edge */}
@@ -69,7 +69,8 @@ export function BottomTabBar() {
                   key={tab.key}
                   href={tab.route}
                   className={cn(
-                    'flex-1 flex flex-col items-center justify-center py-2 px-0.5 rounded-[22px] relative transition-all',
+                    'flex-1 flex flex-col items-center justify-center py-2 px-0.5 rounded-[22px] relative transition-all pointer-events-auto cursor-pointer',
+                    'hover:bg-blue-500/10 dark:hover:bg-blue-400/15',
                     active && 'bg-blue-500/18 dark:bg-blue-400/25'
                   )}
                 >
