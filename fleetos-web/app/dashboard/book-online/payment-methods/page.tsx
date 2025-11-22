@@ -52,6 +52,10 @@ export default function PaymentMethodsPage() {
     requires_full_payment: false,
     deposit_percentage: '30',
     min_deposit_amount: '50',
+    api_key: '',
+    api_secret: '',
+    merchant_id: '',
+    webhook_secret: '',
   });
 
   useEffect(() => {
@@ -102,6 +106,10 @@ export default function PaymentMethodsPage() {
       requires_full_payment: false,
       deposit_percentage: '30',
       min_deposit_amount: '50',
+      api_key: '',
+      api_secret: '',
+      merchant_id: '',
+      webhook_secret: '',
     });
     setModalVisible(true);
   }
@@ -118,6 +126,10 @@ export default function PaymentMethodsPage() {
       requires_full_payment: method.requires_full_payment || false,
       deposit_percentage: method.deposit_percentage.toString() || '30',
       min_deposit_amount: method.min_deposit_amount.toString() || '50',
+      api_key: '', // Don't show existing keys for security
+      api_secret: '', // Don't show existing secrets for security
+      merchant_id: '', // Don't show existing merchant ID for security
+      webhook_secret: '', // Don't show existing webhook secret for security
     });
     setModalVisible(true);
   }
@@ -145,6 +157,20 @@ export default function PaymentMethodsPage() {
         deposit_percentage: parseFloat(formData.deposit_percentage) || 30,
         min_deposit_amount: parseFloat(formData.min_deposit_amount) || 50,
       };
+
+      // Add API credentials if provided (only update if new values are entered)
+      if (formData.api_key) {
+        methodData.api_key_encrypted = formData.api_key; // In production, encrypt this
+      }
+      if (formData.api_secret) {
+        methodData.api_secret_encrypted = formData.api_secret; // In production, encrypt this
+      }
+      if (formData.merchant_id) {
+        methodData.merchant_id = formData.merchant_id;
+      }
+      if (formData.webhook_secret) {
+        methodData.webhook_secret = formData.webhook_secret;
+      }
 
       if (organizationId) {
         methodData.organization_id = organizationId;
@@ -377,6 +403,127 @@ export default function PaymentMethodsPage() {
                   ))}
                 </select>
               </div>
+
+              {/* API Credentials - Show only for providers that need them */}
+              {(formData.provider === 'stripe' || formData.provider === 'viva_wallet' || formData.provider === 'paypal' || formData.provider === 'revolut') && (
+                <div className="border-t border-gray-200 pt-4 space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-900">API Credentials</h3>
+                  <p className="text-xs text-gray-500">
+                    {editingMethod ? 'Leave blank to keep existing credentials. Enter new values to update.' : 'Enter your API credentials for this payment provider.'}
+                  </p>
+                  
+                  {formData.provider === 'stripe' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Stripe Publishable Key
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.api_key}
+                          onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                          placeholder="pk_live_..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Stripe Secret Key
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.api_secret}
+                          onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+                          placeholder="sk_live_..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Webhook Secret (optional)
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.webhook_secret}
+                          onChange={(e) => setFormData({ ...formData, webhook_secret: e.target.value })}
+                          placeholder="whsec_..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {formData.provider === 'viva_wallet' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Viva Wallet Client ID / API Key
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.api_key}
+                          onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                          placeholder="Your Viva Wallet API Key"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Viva Wallet Client Secret
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.api_secret}
+                          onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+                          placeholder="Your Viva Wallet Secret"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Merchant ID (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.merchant_id}
+                          onChange={(e) => setFormData({ ...formData, merchant_id: e.target.value })}
+                          placeholder="Your Merchant ID"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {(formData.provider === 'paypal' || formData.provider === 'revolut') && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          API Key / Client ID
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.api_key}
+                          onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                          placeholder={`Your ${formData.provider === 'paypal' ? 'PayPal' : 'Revolut'} API Key`}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          API Secret / Client Secret
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.api_secret}
+                          onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+                          placeholder={`Your ${formData.provider === 'paypal' ? 'PayPal' : 'Revolut'} Secret`}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

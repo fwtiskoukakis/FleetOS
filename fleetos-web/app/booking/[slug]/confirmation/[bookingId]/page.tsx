@@ -54,28 +54,41 @@ export default function ConfirmationPage({
     if (!routeParams) return;
     try {
       setLoading(true);
-      // In a real implementation, fetch booking from API
-      // For now, we'll use mock data
+      setError(null);
+      
+      // Fetch booking from API
+      const response = await fetch(`/api/v1/bookings/${routeParams.bookingId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load booking');
+      }
+
+      const data = await response.json();
+      const bookingData = data.booking;
+
       setBooking({
-        id: routeParams.bookingId,
-        booking_number: `BK-${routeParams.bookingId.substring(0, 8).toUpperCase()}`,
-        total_price: 450.00,
-        amount_paid: 450.00,
-        payment_status: paymentMethod === 'cash' ? 'pending' : 'fully_paid',
-        booking_status: 'confirmed',
-        customer_full_name: 'John Doe',
-        customer_email: 'john@example.com',
-        pickup_date: new Date().toISOString().split('T')[0],
-        pickup_time: '10:00',
-        pickup_location: 'Athens Airport',
-        dropoff_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        dropoff_time: '10:00',
-        dropoff_location: 'Athens Airport',
-        car_make_model: 'Toyota Corolla',
+        id: bookingData.id,
+        booking_number: bookingData.booking_number || `BK-${bookingData.id.substring(0, 8).toUpperCase()}`,
+        total_price: parseFloat(bookingData.total_price?.toString() || '0'),
+        amount_paid: parseFloat(bookingData.amount_paid?.toString() || '0'),
+        payment_status: bookingData.payment_status || 'pending',
+        booking_status: bookingData.booking_status || 'pending',
+        customer_full_name: bookingData.customer_full_name || '',
+        customer_email: bookingData.customer_email || '',
+        pickup_date: bookingData.pickup_date || '',
+        pickup_time: bookingData.pickup_time || '10:00',
+        pickup_location: bookingData.pickup_location?.name_el || bookingData.pickup_location?.address || 'Location TBD',
+        dropoff_date: bookingData.dropoff_date || '',
+        dropoff_time: bookingData.dropoff_time || '10:00',
+        dropoff_location: bookingData.dropoff_location?.name_el || bookingData.dropoff_location?.address || 'Location TBD',
+        car_make_model: bookingData.car 
+          ? `${bookingData.car.make} ${bookingData.car.model}${bookingData.car.year ? ` (${bookingData.car.year})` : ''}`
+          : 'Car details unavailable',
       });
     } catch (err) {
       console.error('Error loading booking:', err);
-      setError('Failed to load booking confirmation');
+      setError(err instanceof Error ? err.message : 'Failed to load booking confirmation');
     } finally {
       setLoading(false);
     }

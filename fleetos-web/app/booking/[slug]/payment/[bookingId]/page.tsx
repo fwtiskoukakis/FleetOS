@@ -29,7 +29,8 @@ export default function PaymentPage({
   const [processing, setProcessing] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'viva' | 'bank' | 'cash'>('stripe');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; name: string; name_el: string; provider: string; is_active: boolean }>>([]);
   const [routeParams, setRouteParams] = useState<{ slug: string; bookingId: string } | null>(null);
 
   // Resolve params
@@ -42,31 +43,71 @@ export default function PaymentPage({
   useEffect(() => {
     if (routeParams) {
       loadBooking();
+      loadPaymentMethods();
     }
   }, [routeParams]);
+
+  async function loadPaymentMethods() {
+    if (!routeParams) return;
+    try {
+      // Get organization ID from slug
+      const orgResponse = await fetch(`/api/v1/organizations/${routeParams.slug}/validate`);
+      if (!orgResponse.ok) return;
+      
+      const orgData = await orgResponse.json();
+      if (!orgData.organization_id) return;
+
+      // Fetch active payment methods for this organization
+      // Note: This would need an API endpoint, for now using direct Supabase call
+      // In production, create: /api/v1/organizations/[slug]/payment-methods
+      const response = await fetch(`/api/v1/organizations/${routeParams.slug}/payment-methods`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const activeMethods = (data.payment_methods || []).filter((pm: any) => pm.is_active && pm.provider !== 'cash');
+        setPaymentMethods(activeMethods);
+        if (activeMethods.length > 0) {
+          setPaymentMethod(activeMethods[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading payment methods:', err);
+    }
+  }
 
   async function loadBooking() {
     if (!routeParams) return;
     try {
       setLoading(true);
-      // In a real implementation, fetch booking from API
-      // For now, we'll use the bookingId from params
+      setError(null);
+      
+      // Fetch booking from API
+      const response = await fetch(`/api/v1/bookings/${routeParams.bookingId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load booking');
+      }
+
+      const data = await response.json();
+      const bookingData = data.booking;
+
       setBooking({
-        id: routeParams.bookingId,
-        booking_number: `BK-${routeParams.bookingId.substring(0, 8).toUpperCase()}`,
-        total_price: 0, // Will be loaded from API
-        amount_paid: 0,
-        amount_remaining: 0,
-        payment_status: 'pending',
-        booking_status: 'pending',
-        customer_full_name: '',
-        customer_email: '',
-        pickup_date: '',
-        dropoff_date: '',
+        id: bookingData.id,
+        booking_number: bookingData.booking_number || `BK-${bookingData.id.substring(0, 8).toUpperCase()}`,
+        total_price: parseFloat(bookingData.total_price?.toString() || '0'),
+        amount_paid: parseFloat(bookingData.amount_paid?.toString() || '0'),
+        amount_remaining: parseFloat(bookingData.amount_remaining?.toString() || bookingData.total_price?.toString() || '0'),
+        payment_status: bookingData.payment_status || 'pending',
+        booking_status: bookingData.booking_status || 'pending',
+        customer_full_name: bookingData.customer_full_name || '',
+        customer_email: bookingData.customer_email || '',
+        pickup_date: bookingData.pickup_date || '',
+        dropoff_date: bookingData.dropoff_date || '',
       });
     } catch (err) {
       console.error('Error loading booking:', err);
-      setError('Failed to load booking details');
+      setError(err instanceof Error ? err.message : 'Failed to load booking details');
     } finally {
       setLoading(false);
     }
@@ -81,8 +122,18 @@ export default function PaymentPage({
       setProcessing(true);
       setError(null);
 
-      // Process payment based on method
-      if (paymentMethod === 'stripe' || paymentMethod === 'viva') {
+      if (!paymentMethod) {
+        throw new Error('Please select a payment method');
+      }
+
+      // Get selected payment method details
+      const selectedMethod = paymentMethods.find(pm => pm.id === paymentMethod);
+      if (!selectedMethod) {
+        throw new Error('Invalid payment method selected');
+      }
+
+      // Process payment based on provider
+      if (selectedMethod.provider === 'stripe' || selectedMethod.provider === 'viva_wallet') {
         // Create payment intent
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
@@ -92,6 +143,8 @@ export default function PaymentPage({
           body: JSON.stringify({
             bookingId: routeParams.bookingId,
             amount: booking?.amount_remaining || booking?.total_price || 0,
+            payment_method_id: paymentMethod,
+            provider: selectedMethod.provider,
           }),
         });
 
@@ -104,10 +157,7 @@ export default function PaymentPage({
         // In real implementation, redirect to Stripe/Viva Wallet checkout
         // For now, simulate payment success
         await processPaymentSuccess(data.paymentIntentId);
-      } else if (paymentMethod === 'bank') {
-        if (!routeParams) {
-          throw new Error('Route parameters not loaded');
-        }
+      } else if (selectedMethod.provider === 'bank_transfer') {
         // Bank transfer - mark as pending
         await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
           method: 'POST',
@@ -115,31 +165,15 @@ export default function PaymentPage({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            payment_method_id: 'bank',
+            payment_method_id: paymentMethod,
             amount: booking?.amount_remaining || booking?.total_price || 0,
             transaction_id: `BANK-${Date.now()}`,
           }),
         });
 
         router.push(`/booking/${routeParams.slug}/confirmation/${routeParams.bookingId}?payment_method=bank`);
-      } else if (paymentMethod === 'cash') {
-        if (!routeParams) {
-          throw new Error('Route parameters not loaded');
-        }
-        // Pay on arrival
-        await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            payment_method_id: 'cash',
-            amount: 0,
-            transaction_id: `CASH-${Date.now()}`,
-          }),
-        });
-
-        router.push(`/booking/${routeParams.slug}/confirmation/${routeParams.bookingId}?payment_method=cash`);
+      } else {
+        throw new Error('Unsupported payment method');
       }
     } catch (err) {
       console.error('Payment error:', err);
@@ -150,8 +184,8 @@ export default function PaymentPage({
   }
 
   async function processPaymentSuccess(paymentIntentId: string) {
-    if (!routeParams) {
-      throw new Error('Route parameters not loaded');
+    if (!routeParams || !paymentMethod) {
+      throw new Error('Route parameters or payment method not loaded');
     }
     // Update booking payment status
     const response = await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
@@ -265,83 +299,44 @@ export default function PaymentPage({
             <CreditCard className="w-5 h-5" />
             Select Payment Method
           </h2>
-          <div className="space-y-3">
-            <label className={`block border rounded-lg p-4 cursor-pointer transition-colors ${
-              paymentMethod === 'stripe' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value="stripe"
-                  checked={paymentMethod === 'stripe'}
-                  onChange={() => setPaymentMethod('stripe')}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Credit/Debit Card</h3>
-                  <p className="text-sm text-gray-600 mt-1">Pay securely with Stripe</p>
-                </div>
-              </div>
-            </label>
-
-            <label className={`block border rounded-lg p-4 cursor-pointer transition-colors ${
-              paymentMethod === 'viva' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value="viva"
-                  checked={paymentMethod === 'viva'}
-                  onChange={() => setPaymentMethod('viva')}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Viva Wallet</h3>
-                  <p className="text-sm text-gray-600 mt-1">Pay with Viva Wallet</p>
-                </div>
-              </div>
-            </label>
-
-            <label className={`block border rounded-lg p-4 cursor-pointer transition-colors ${
-              paymentMethod === 'bank' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value="bank"
-                  checked={paymentMethod === 'bank'}
-                  onChange={() => setPaymentMethod('bank')}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Bank Transfer</h3>
-                  <p className="text-sm text-gray-600 mt-1">Transfer funds directly to our bank account</p>
-                </div>
-              </div>
-            </label>
-
-            <label className={`block border rounded-lg p-4 cursor-pointer transition-colors ${
-              paymentMethod === 'cash' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value="cash"
-                  checked={paymentMethod === 'cash'}
-                  onChange={() => setPaymentMethod('cash')}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Pay on Arrival</h3>
-                  <p className="text-sm text-gray-600 mt-1">Pay in cash when you pick up the vehicle</p>
-                </div>
-              </div>
-            </label>
-          </div>
+          {paymentMethods.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No payment methods available. Please contact support.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {paymentMethods.map((method) => (
+                <label
+                  key={method.id}
+                  className={`block border rounded-lg p-4 cursor-pointer transition-colors ${
+                    paymentMethod === method.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value={method.id}
+                      checked={paymentMethod === method.id}
+                      onChange={() => setPaymentMethod(method.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{method.name_el || method.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {method.provider === 'stripe' && 'Pay securely with Stripe'}
+                        {method.provider === 'viva_wallet' && 'Pay with Viva Wallet'}
+                        {method.provider === 'bank_transfer' && 'Transfer funds directly to our bank account'}
+                        {method.provider === 'paypal' && 'Pay with PayPal'}
+                        {method.provider === 'revolut' && 'Pay with Revolut'}
+                      </p>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Security Notice */}
@@ -360,7 +355,7 @@ export default function PaymentPage({
         {/* Payment Button */}
         <button
           onClick={handlePayment}
-          disabled={processing || amountToPay <= 0}
+          disabled={processing || amountToPay <= 0 || !paymentMethod || paymentMethods.length === 0}
           className="w-full px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {processing ? (

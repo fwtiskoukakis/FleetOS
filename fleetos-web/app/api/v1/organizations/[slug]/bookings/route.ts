@@ -139,9 +139,20 @@ export async function POST(
       );
     }
 
-    // Calculate rental days
-    const pickup = new Date(pickup_date);
-    const dropoff = new Date(dropoff_date);
+    // Calculate rental days (ensure dates are parsed correctly without timezone issues)
+    // Parse dates as local dates to avoid timezone shifts
+    const pickupDateParts = pickup_date.split('-');
+    const dropoffDateParts = dropoff_date.split('-');
+    const pickup = new Date(
+      parseInt(pickupDateParts[0]),
+      parseInt(pickupDateParts[1]) - 1,
+      parseInt(pickupDateParts[2])
+    );
+    const dropoff = new Date(
+      parseInt(dropoffDateParts[0]),
+      parseInt(dropoffDateParts[1]) - 1,
+      parseInt(dropoffDateParts[2])
+    );
     const rentalDays = Math.ceil((dropoff.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
 
     // Calculate pricing

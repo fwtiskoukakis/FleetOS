@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { getOrganizationId } from '@/lib/organization';
 import { 
   List, Search, Filter, CheckCircle2, Clock, XCircle,
-  Calendar, Car, MapPin, DollarSign, User, Phone, Mail
+  Calendar, Car, MapPin, DollarSign, User, Phone, Mail, Trash2
 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 import { format, parseISO } from 'date-fns';
@@ -139,6 +139,29 @@ export default function BookingsPage() {
     }
 
     setFilteredBookings(filtered);
+  }
+
+  async function handleCancelBooking(bookingId: string, bookingNumber: string) {
+    if (!confirm(`Are you sure you want to cancel booking #${bookingNumber}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/v1/bookings/${bookingId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to cancel booking');
+      }
+
+      alert('Booking cancelled successfully');
+      loadBookings();
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      alert(error instanceof Error ? error.message : 'Failed to cancel booking');
+    }
   }
 
   function getStatusLabel(status: string): string {
@@ -347,6 +370,19 @@ export default function BookingsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Actions */}
+                {(booking.booking_status === 'pending' || booking.booking_status === 'confirmed') && (
+                  <div className="pt-4 border-t border-gray-200 flex justify-end">
+                    <button
+                      onClick={() => handleCancelBooking(booking.id, booking.booking_number)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Cancel Booking
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
