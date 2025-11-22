@@ -39,7 +39,6 @@ export function AppHeader({ showBack = false, title, onBackPress }: AppHeaderPro
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo>({
     name: 'User',
     email: 'user@example.com',

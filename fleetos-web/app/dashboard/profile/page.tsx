@@ -8,7 +8,7 @@ import {
   User, Settings, Bell, Key, LogOut, Camera, 
   Shield, Building, FileText, Car, Calendar, 
   BarChart3, Edit, X, Check, Eye, EyeOff,
-  Flask, Send
+  Send
 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 

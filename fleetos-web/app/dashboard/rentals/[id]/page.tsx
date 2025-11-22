@@ -21,7 +21,11 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Camera,
+  Image as ImageIcon,
+  Signature,
+  X
 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 import { format, parseISO, differenceInDays } from 'date-fns';
@@ -29,7 +33,6 @@ import { el } from 'date-fns/locale';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { PhotoStorageService } from '@/lib/photo-storage.service';
 import { saveContract, type Contract, type RenterInfo, type RentalPeriod, type CarInfo, type CarCondition } from '@/lib/contract.service';
-import { Camera, Image as ImageIcon, Signature, RefreshCw, X } from 'lucide-react';
 
 export default function ContractDetailsPage() {
   const router = useRouter();
