@@ -90,12 +90,18 @@ export async function POST(request: NextRequest) {
       const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'https://fleetos.eu';
       const baseUrl = origin;
       
+      // Get organization slug for URLs
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('slug')
+        .eq('id', booking.organization_id)
+        .single();
+      
+      const orgSlug = orgData?.slug || 'default';
+      
       // Viva Wallet checkout session creation
-      // Note: This is a simplified implementation. Actual Viva Wallet API may differ.
-      // You'll need to implement the actual Viva Wallet API call here.
       try {
         // Create Viva Wallet checkout session
-        // This is a placeholder - you need to implement actual Viva Wallet API integration
         const checkoutUrl = await createVivaWalletCheckout({
           apiKey,
           apiSecret,
@@ -106,8 +112,8 @@ export async function POST(request: NextRequest) {
           bookingNumber: booking.booking_number || `BK-${bookingId.substring(0, 8)}`,
           customerEmail: booking.customer_email,
           customerName: booking.customer_full_name,
-          successUrl: `${baseUrl}/booking/${booking.organization?.slug || 'default'}/confirmation/${bookingId}?payment_success=true`,
-          cancelUrl: `${baseUrl}/booking/${booking.organization?.slug || 'default'}/payment/${bookingId}?payment_cancelled=true`,
+          successUrl: `${baseUrl}/booking/${orgSlug}/confirmation/${bookingId}?payment_success=true`,
+          cancelUrl: `${baseUrl}/booking/${orgSlug}/payment/${bookingId}?payment_cancelled=true`,
         });
 
         // Store pending transaction
@@ -127,8 +133,12 @@ export async function POST(request: NextRequest) {
         });
       } catch (vivaError) {
         console.error('Viva Wallet checkout creation failed:', vivaError);
+        const errorMessage = vivaError instanceof Error ? vivaError.message : 'Unknown error';
         return NextResponse.json(
-          { error: 'Failed to create Viva Wallet checkout. Please check your API credentials.' },
+          { 
+            error: 'Failed to create Viva Wallet checkout. Please check your API credentials.',
+            details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+          },
           { status: 500 }
         );
       }
@@ -167,7 +177,6 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to create Viva Wallet checkout
-// This is a placeholder - implement actual Viva Wallet API integration
 async function createVivaWalletCheckout(params: {
   apiKey: string;
   apiSecret: string;
@@ -181,21 +190,148 @@ async function createVivaWalletCheckout(params: {
   successUrl: string;
   cancelUrl: string;
 }): Promise<string> {
-  // TODO: Implement actual Viva Wallet API integration
-  // For now, return an error that implementation is needed
+  // Viva Wallet uses OAuth2 for authentication
+  // Step 1: Get access token
+  // Check if we're in test mode (credentials starting with specific patterns indicate test)
+  const isTestMode = params.apiKey.includes('test') || params.apiKey.includes('sandbox') || params.apiKey.startsWith('demo');
+  const vivaBaseUrl = isTestMode 
+    ? 'https://demo.vivapayments.com' // Test/sandbox environment
+    : 'https://www.vivawallet.com'; // Production environment
   
-  // Viva Wallet API typically uses OAuth2 authentication
-  // Steps:
-  // 1. Get access token using client_id and client_secret
-  // 2. Create a checkout session with the access token
-  // 3. Return the checkout URL
+  const tokenUrl = `${vivaBaseUrl}/oauth2/token`;
   
-  // This is a placeholder implementation
-  // You'll need to:
-  // - Get Viva Wallet access token from their OAuth2 endpoint
-  // - Call Viva Wallet Checkout API to create a payment order
-  // - Return the checkout URL
+  // Create Basic Auth header (Buffer is available in Node.js runtime)
+  const credentials = Buffer.from(`${params.apiKey}:${params.apiSecret}`).toString('base64');
   
-  throw new Error('Viva Wallet API integration not yet implemented. Please implement the createVivaWalletCheckout function with actual Viva Wallet API calls.');
+  console.log('Attempting Viva Wallet authentication:', {
+    isTestMode,
+    vivaBaseUrl,
+    tokenUrl,
+    hasApiKey: !!params.apiKey,
+    hasApiSecret: !!params.apiSecret,
+  });
+  
+  const tokenResponse = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentials}`,
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    console.error('Viva Wallet token error:', {
+      status: tokenResponse.status,
+      statusText: tokenResponse.statusText,
+      error: errorText,
+    });
+    throw new Error(`Failed to authenticate with Viva Wallet: ${tokenResponse.status} ${tokenResponse.statusText}. Please check your Client ID and Client Secret.`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  const accessToken = tokenData.access_token;
+
+  if (!accessToken) {
+    console.error('Viva Wallet token response:', tokenData);
+    throw new Error('Failed to obtain Viva Wallet access token. Invalid response from authentication endpoint.');
+  }
+
+  console.log('Viva Wallet authentication successful');
+
+  // Step 2: Create payment order
+  // Viva Wallet API endpoint for creating orders
+  const orderUrl = `${vivaBaseUrl}/api/orders`;
+  
+  // Viva Wallet order creation payload
+  // Note: Viva Wallet API format may vary - adjust based on actual API documentation
+  const orderData: any = {
+    amount: params.amount, // Amount in cents (e.g., 124 for €1.24)
+    customerTrns: `Booking ${params.bookingNumber}`,
+    paymentTimeout: 1800, // 30 minutes in seconds
+    preauth: false,
+    allowRecurring: false,
+    maxInstallments: 0,
+    merchantTrns: `Booking ID: ${params.bookingId}`,
+    tags: [params.bookingId],
+  };
+
+  // Add customer info if available
+  if (params.customerEmail) {
+    orderData.customer = {
+      email: params.customerEmail,
+      fullName: params.customerName || '',
+    };
+  }
+
+  // Add source code (merchant ID) if provided
+  if (params.merchantId) {
+    orderData.sourceCode = params.merchantId;
+  }
+
+  // Add redirect URLs
+  if (params.successUrl) {
+    orderData.successUrl = params.successUrl;
+  }
+  if (params.cancelUrl) {
+    orderData.cancelUrl = params.cancelUrl;
+  }
+
+  console.log('Creating Viva Wallet order:', {
+    orderUrl,
+    amount: params.amount,
+    currency: params.currency,
+    bookingNumber: params.bookingNumber,
+  });
+
+  const orderResponse = await fetch(orderUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(orderData),
+  });
+
+  if (!orderResponse.ok) {
+    const errorText = await orderResponse.text();
+    console.error('Viva Wallet order creation error:', {
+      status: orderResponse.status,
+      statusText: orderResponse.statusText,
+      error: errorText,
+      orderData,
+    });
+    throw new Error(`Failed to create Viva Wallet order: ${orderResponse.status} ${orderResponse.statusText}. ${errorText}`);
+  }
+
+  const orderResult = await orderResponse.json();
+  console.log('Viva Wallet order created:', orderResult);
+  
+  // Viva Wallet returns the checkout URL in different formats depending on the API version
+  // Check for common response formats
+  if (orderResult.checkoutUrl) {
+    return orderResult.checkoutUrl;
+  } else if (orderResult.url) {
+    return orderResult.url;
+  } else if (orderResult.orderCode) {
+    // If only orderCode is returned, construct the checkout URL
+    // Format: https://www.vivawallet.com/web/checkout?ref={orderCode}
+    const checkoutBase = isTestMode 
+      ? 'https://demo.vivapayments.com/web/checkout'
+      : 'https://www.vivawallet.com/web/checkout';
+    return `${checkoutBase}?ref=${orderResult.orderCode}`;
+  } else if (orderResult.OrderCode) {
+    // Some APIs return capitalized OrderCode
+    const checkoutBase = isTestMode 
+      ? 'https://demo.vivapayments.com/web/checkout'
+      : 'https://www.vivawallet.com/web/checkout';
+    return `${checkoutBase}?ref=${orderResult.OrderCode}`;
+  } else {
+    console.error('Unexpected Viva Wallet response:', orderResult);
+    throw new Error(`Viva Wallet returned an unexpected response format. Response: ${JSON.stringify(orderResult)}`);
+  }
 }
 
