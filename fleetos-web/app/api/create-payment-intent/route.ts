@@ -216,7 +216,7 @@ async function createVivaWalletCheckout(params: {
   
   console.log('Attempting Viva Wallet authentication:', {
     isTestMode,
-    vivaBaseUrl,
+    vivaApiBaseUrl,
     tokenUrl,
     hasApiKey: !!params.apiKey,
     hasApiSecret: !!params.apiSecret,
