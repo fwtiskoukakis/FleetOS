@@ -14,14 +14,15 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params;
     // Get organization by slug
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('id, subscription_status, is_active')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .eq('is_active', true)
       .single();
 

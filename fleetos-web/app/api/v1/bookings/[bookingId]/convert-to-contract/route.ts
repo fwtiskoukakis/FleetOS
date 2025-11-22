@@ -11,13 +11,14 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
+    const { bookingId } = await params;
     // Call the database function to auto-create contract
     const { data: contractId, error } = await supabase.rpc(
       'auto_create_contract_from_booking',
-      { p_booking_id: params.bookingId }
+      { p_booking_id: bookingId }
     );
 
     if (error) {

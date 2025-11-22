@@ -11,9 +11,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params;
     const body = await request.json();
     const {
       pickup_date,
@@ -37,7 +38,7 @@ export async function POST(
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('id, subscription_status, is_active')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .eq('is_active', true)
       .single();
 

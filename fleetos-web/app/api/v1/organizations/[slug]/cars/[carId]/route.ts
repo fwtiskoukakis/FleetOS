@@ -11,9 +11,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string; carId: string } }
+  { params }: { params: Promise<{ slug: string; carId: string }> }
 ) {
   try {
+    const { slug, carId } = await params;
     const { searchParams } = new URL(request.url);
     const pickupDate = searchParams.get('pickup_date');
     const dropoffDate = searchParams.get('dropoff_date');
@@ -29,7 +30,7 @@ export async function GET(
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('id, subscription_status, is_active')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .eq('is_active', true)
       .single();
 
@@ -48,7 +49,7 @@ export async function GET(
         category:car_categories(*),
         photos:car_photos(*)
       `)
-      .eq('id', params.carId)
+      .eq('id', carId)
       .eq('organization_id', org.id)
       .eq('is_active', true)
       .single();

@@ -11,9 +11,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
+    const { bookingId } = await params;
     const body = await request.json();
     const {
       payment_method_id,
@@ -33,7 +34,7 @@ export async function POST(
     const { data: booking, error: bookingError } = await supabase
       .from('online_bookings')
       .select('*')
-      .eq('id', params.bookingId)
+      .eq('id', bookingId)
       .single();
 
     if (bookingError || !booking) {
@@ -68,7 +69,7 @@ export async function POST(
         amount_remaining: Math.max(0, newAmountRemaining),
         booking_status: isFullPayment ? 'confirmed' : booking.booking_status,
       })
-      .eq('id', params.bookingId);
+      .eq('id', bookingId);
 
     if (updateError) {
       console.error('Error updating booking:', updateError);
@@ -82,7 +83,7 @@ export async function POST(
     const { error: transactionError } = await supabase
       .from('payment_transactions')
       .insert({
-        booking_id: params.bookingId,
+        booking_id: bookingId,
         transaction_id: payment_intent_id || transaction_id,
         amount,
         currency: 'EUR',

@@ -11,12 +11,13 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params;
     // Use database function to validate
     const { data, error } = await supabase.rpc('validate_organization_access', {
-      p_slug: params.slug,
+      p_slug: slug,
     });
 
     if (error) {

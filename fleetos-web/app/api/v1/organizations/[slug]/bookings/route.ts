@@ -12,9 +12,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params;
     const body = await request.json();
     const {
       car_id,
@@ -64,7 +65,7 @@ export async function POST(
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('id, subscription_status, is_active, max_contracts_per_month')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .eq('is_active', true)
       .single();
 
@@ -320,7 +321,7 @@ export async function POST(
         amount_remaining: booking.amount_remaining,
       },
       payment_url: depositAmount < totalWithVat 
-        ? `/booking/${params.slug}/payment/${booking.id}`
+        ? `/booking/${slug}/payment/${booking.id}`
         : null,
     });
   } catch (error) {
