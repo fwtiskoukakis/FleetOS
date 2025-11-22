@@ -142,7 +142,8 @@ async function calculatePricing(
   organizationId: string
 ): Promise<{ basePrice: number; pricePerDay: number } | null> {
   try {
-    const { data: pricingRules } = await supabase
+    const supabaseClient = getSupabaseClient();
+    const { data: pricingRules } = await supabaseClient
       .from('car_pricing')
       .select('*')
       .or(`car_id.eq.${carId},category_id.eq.${categoryId}`)
