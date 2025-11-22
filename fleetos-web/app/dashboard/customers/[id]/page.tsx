@@ -350,20 +350,6 @@ export default function CustomerDetailsPage() {
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8 overflow-x-auto">
-            <Link href="/dashboard" className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
-              Dashboard
-            </Link>
-            <Link href="/dashboard/customers" className="border-b-2 border-blue-600 py-4 px-1 text-sm font-medium text-blue-600 whitespace-nowrap">
-              Customers
-            </Link>
-          </div>
-        </div>
-      </nav>
-
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-4xl">
         {/* Customer Info Card */}
