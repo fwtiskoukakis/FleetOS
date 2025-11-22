@@ -200,6 +200,159 @@ export default function ContractDetailsPage() {
       return 1;
     }
   }
+
+  function handleOpenRenewModal() {
+    if (!contract) return;
+    
+    // Set default dates: pickup day after current dropoff, dropoff one month later
+    const basePickup = parseISO(contract.dropoff_date || new Date().toISOString());
+    basePickup.setDate(basePickup.getDate() + 1);
+    basePickup.setHours(0, 0, 0, 0);
+    const defaultPickup = basePickup > new Date() ? basePickup : new Date();
+    const defaultDropoff = new Date(defaultPickup);
+    defaultDropoff.setMonth(defaultDropoff.getMonth() + 1);
+
+    const pickupTime = contract.pickup_time || '10:00';
+    const dropoffTime = contract.dropoff_time || pickupTime;
+
+    setRenewPickupDate(defaultPickup);
+    setRenewDropoffDate(defaultDropoff);
+    setRenewPickupTime(pickupTime);
+    setRenewDropoffTime(dropoffTime);
+    setRenewTotalCost(String(contract.total_cost || 0));
+    setRenewDepositAmount('0');
+    setRenewInsuranceCost('0');
+    setRenewNotes(`Renewal from contract ${contract.id}`);
+    setCopyPhotos(false);
+    setCopySignature(false);
+    setRenewModalVisible(true);
+  }
+
+  function handleCloseRenewModal() {
+    if (isRenewing) return;
+    setRenewModalVisible(false);
+    setShowRenewPickupDatePicker(false);
+    setShowRenewDropoffDatePicker(false);
+  }
+
+  async function handleRenewContract() {
+    if (!contract) return;
+
+    const totalCostValue = parseFloat(renewTotalCost.replace(',', '.')) || 0;
+    if (totalCostValue <= 0) {
+      alert('Please enter a valid total cost.');
+      return;
+    }
+
+    if (renewDropoffDate <= renewPickupDate) {
+      alert('Dropoff date must be after pickup date.');
+      return;
+    }
+
+    setIsRenewing(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You are not logged in. Please log in first.');
+        setIsRenewing(false);
+        return;
+      }
+
+      const pickup = new Date(renewPickupDate);
+      const dropoff = new Date(renewDropoffDate);
+      const now = new Date();
+      pickup.setHours(0, 0, 0, 0);
+      dropoff.setHours(0, 0, 0, 0);
+
+      let status: 'active' | 'completed' | 'pending' | 'cancelled';
+      if (now < pickup) {
+        status = 'pending';
+      } else if (now >= pickup && now <= dropoff) {
+        status = 'active';
+      } else {
+        status = 'completed';
+      }
+
+      const depositValue = parseFloat(renewDepositAmount.replace(',', '.')) || 0;
+      const insuranceValue = parseFloat(renewInsuranceCost.replace(',', '.')) || 0;
+
+      const renewalNote = `Renewal from contract ${contract.id}`;
+      const customNote = renewNotes.trim();
+      const combinedObservations = [
+        contract.observations?.trim(),
+        customNote && customNote !== renewalNote ? customNote : '',
+        renewalNote,
+      ].filter(Boolean).join('\n');
+
+      // Prepare new contract data
+      const renterInfo: RenterInfo = {
+        fullName: contract.renter_name || '',
+        email: contract.renter_email || '',
+        phone: contract.renter_phone_number || '',
+        address: contract.renter_address || '',
+        idNumber: contract.renter_id_number || '',
+        licenseNumber: contract.renter_license_number || '',
+        licenseIssueDate: contract.renter_license_issue_date ? parseISO(contract.renter_license_issue_date) : undefined,
+        licenseExpiryDate: contract.renter_license_expiry_date ? parseISO(contract.renter_license_expiry_date) : undefined,
+      };
+
+      const rentalPeriod: RentalPeriod = {
+        pickupDate: pickup,
+        pickupTime: renewPickupTime || contract.pickup_time || '10:00',
+        pickupLocation: contract.pickup_location || '',
+        dropoffDate: dropoff,
+        dropoffTime: renewDropoffTime || contract.dropoff_time || renewPickupTime || '10:00',
+        dropoffLocation: contract.dropoff_location || contract.pickup_location || '',
+        isDifferentDropoffLocation: contract.is_different_dropoff_location || false,
+        totalCost: totalCostValue,
+        depositAmount: depositValue,
+        insuranceCost: insuranceValue,
+      };
+
+      const carInfo: CarInfo = {
+        makeModel: contract.car_make_model || '',
+        licensePlate: contract.car_license_plate || '',
+        year: contract.car_year,
+        color: contract.car_color || '',
+        mileage: contract.car_mileage || 0,
+      };
+
+      const carCondition: CarCondition = {
+        fuelLevel: contract.fuel_level !== null && contract.fuel_level !== undefined ? contract.fuel_level : 8,
+        exteriorCondition: contract.exterior_condition || 'good',
+        interiorCondition: contract.interior_condition || 'good',
+        mechanicalCondition: contract.mechanical_condition || 'good',
+      };
+
+      // Create new contract
+      const newContractId = await saveContract({
+        renterInfo,
+        rentalPeriod,
+        carInfo,
+        carCondition,
+        damagePoints: [],
+        photos: copyPhotos ? contractPhotos : [],
+        clientSignature: copySignature ? clientSignature : '',
+        clientSignaturePaths: copySignature && clientSignature ? [clientSignature] : [],
+        observations: combinedObservations || undefined,
+        status,
+      });
+
+      if (!newContractId) {
+        throw new Error('Failed to create renewal contract');
+      }
+
+      alert('Contract renewal created successfully!');
+      handleCloseRenewModal();
+      router.push(`/dashboard/rentals/${newContractId}`);
+    } catch (error: any) {
+      console.error('Error renewing contract:', error);
+      alert('Failed to create renewal contract: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsRenewing(false);
+    }
+  }
   
   if (loading) {
     return (
