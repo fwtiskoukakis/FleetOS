@@ -364,8 +364,9 @@ async function calculateTotalPrice(
   discountAmount: number;
   totalPrice: number;
 }> {
+  const supabaseClient = getSupabaseClient();
   // Calculate base price (same logic as search endpoint)
-  const { data: pricingRules } = await supabase
+  const { data: pricingRules } = await supabaseClient
     .from('car_pricing')
     .select('*')
     .or(`car_id.eq.${carId},category_id.eq.${categoryId}`)
@@ -396,13 +397,13 @@ async function calculateTotalPrice(
   }
 
   // Calculate location fees
-  const { data: pickupLocation } = await supabase
+  const { data: pickupLocation } = await supabaseClient
     .from('locations')
     .select('extra_pickup_fee')
     .eq('id', pickupLocationId)
     .single();
 
-  const { data: dropoffLocation } = await supabase
+  const { data: dropoffLocation } = await supabaseClient
     .from('locations')
     .select('extra_delivery_fee')
     .eq('id', dropoffLocationId)
@@ -415,7 +416,7 @@ async function calculateTotalPrice(
   let extrasPrice = 0;
   if (selectedExtras && selectedExtras.length > 0) {
     for (const extra of selectedExtras) {
-      const { data: extraOption } = await supabase
+      const { data: extraOption } = await supabaseClient
         .from('extra_options')
         .select('price_per_day, is_one_time_fee')
         .eq('id', extra.extra_id)
