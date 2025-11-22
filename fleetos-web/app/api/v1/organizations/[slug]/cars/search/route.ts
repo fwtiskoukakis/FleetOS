@@ -206,7 +206,7 @@ async function calculatePricing(
   try {
     // Get pricing rules for this date range
     // Priority: car-specific pricing > category pricing
-    const { data: pricingRules, error } = await supabase
+    const { data: pricingRules, error } = await supabaseClient
       .from('car_pricing')
       .select('*')
       .or(`car_id.eq.${carId},category_id.eq.${categoryId}`)
