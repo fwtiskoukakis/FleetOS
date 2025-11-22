@@ -107,7 +107,7 @@ export function CarDiagram({
     }
   }
 
-  function renderDamageMarker(damage: DamagePoint) {
+  function renderDamageMarker(damage: DamagePoint, index: number) {
     if (damage.view !== selectedView) return null;
     
     const left = `${damage.x}%`;
@@ -115,7 +115,7 @@ export function CarDiagram({
     
     return (
       <div
-        key={damage.id}
+        key={damage.id || `damage-${index}`}
         className="absolute transform -translate-x-1/2 -translate-y-1/2"
         style={{ left, top }}
       >
@@ -190,7 +190,7 @@ export function CarDiagram({
           />
           
           {/* Render damage markers */}
-          {damagePoints.map(damage => renderDamageMarker(damage))}
+          {damagePoints.map((damage, index) => renderDamageMarker(damage, index))}
         </div>
       </div>
 
