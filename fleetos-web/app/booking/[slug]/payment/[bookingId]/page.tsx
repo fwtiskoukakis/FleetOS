@@ -133,8 +133,40 @@ export default function PaymentPage({
       }
 
       // Process payment based on provider
-      if (selectedMethod.provider === 'stripe' || selectedMethod.provider === 'viva_wallet') {
-        // Create payment intent
+      if (selectedMethod.provider === 'viva_wallet') {
+        // Create Viva Wallet checkout session
+        const response = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            bookingId: routeParams.bookingId,
+            amount: booking?.amount_remaining || booking?.total_price || 0,
+            payment_method_id: paymentMethod,
+            provider: selectedMethod.provider,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create Viva Wallet checkout');
+        }
+
+        const data = await response.json();
+        
+        // Redirect to Viva Wallet checkout URL
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else if (data.clientSecret) {
+          // If we get a client secret, redirect to Viva Wallet with it
+          // Viva Wallet typically uses a checkout URL format
+          throw new Error('Viva Wallet checkout URL not returned. Please check your API configuration.');
+        } else {
+          throw new Error('Invalid response from payment API');
+        }
+      } else if (selectedMethod.provider === 'stripe') {
+        // Create Stripe payment intent
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: {
@@ -154,9 +186,16 @@ export default function PaymentPage({
 
         const data = await response.json();
         
-        // In real implementation, redirect to Stripe/Viva Wallet checkout
-        // For now, simulate payment success
-        await processPaymentSuccess(data.paymentIntentId);
+        // Redirect to Stripe checkout or use Stripe Elements
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else if (data.clientSecret) {
+          // For Stripe, we would use Stripe Elements to process payment
+          // For now, show error that Stripe Elements integration is needed
+          throw new Error('Stripe Elements integration needed. Please implement Stripe Elements or use Stripe Checkout.');
+        } else {
+          throw new Error('Invalid response from payment API');
+        }
       } else if (selectedMethod.provider === 'bank_transfer') {
         // Bank transfer - mark as pending
         await fetch(`/api/v1/bookings/${routeParams.bookingId}/payment`, {
