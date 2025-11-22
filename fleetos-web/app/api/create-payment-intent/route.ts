@@ -328,12 +328,12 @@ async function createVivaWalletCheckout(params: {
       statusText: tokenResponse.statusText,
       contentType: tokenContentType,
       error: errorText.substring(0, 500), // Limit error text length
-      url: tokenUrl,
+      url: currentTokenUrl || tokenUrl,
     });
     
     // If we got HTML, it's likely an error page
     if (tokenContentType?.includes('text/html')) {
-      throw new Error(`Viva Wallet authentication failed with HTML response (${tokenResponse.status}). The endpoint may be incorrect or credentials are invalid. URL: ${tokenUrl}`);
+      throw new Error(`Viva Wallet authentication failed with HTML response (${tokenResponse.status}). The endpoint may be incorrect or credentials are invalid. URL: ${currentTokenUrl || tokenUrl}`);
     }
     
     throw new Error(`Failed to authenticate with Viva Wallet: ${tokenResponse.status} ${tokenResponse.statusText}. Please check your Client ID and Client Secret. Response: ${errorText.substring(0, 200)}`);
@@ -346,7 +346,7 @@ async function createVivaWalletCheckout(params: {
       status: tokenResponse.status,
       statusText: tokenResponse.statusText,
       contentType: tokenContentType,
-      url: tokenUrl,
+      url: currentTokenUrl || tokenUrl,
       response: errorText.substring(0, 1000), // Get more of the HTML to see what's wrong
     });
     
@@ -357,7 +357,7 @@ async function createVivaWalletCheckout(params: {
     const title = htmlTitleMatch ? htmlTitleMatch[1] : 'Unknown';
     const body = htmlBodyMatch ? htmlBodyMatch[1].replace(/<[^>]+>/g, ' ').substring(0, 200) : '';
     
-    throw new Error(`Viva Wallet returned HTML response (not JSON) from ${tokenUrl}. Status: ${tokenResponse.status}. This usually means the endpoint doesn't exist or credentials are invalid. Page title: "${title}". Error: ${body || errorText.substring(0, 200)}`);
+    throw new Error(`Viva Wallet returned HTML response (not JSON) from ${currentTokenUrl || tokenUrl}. Status: ${tokenResponse.status}. This usually means the endpoint doesn't exist or credentials are invalid. Page title: "${title}". Error: ${body || errorText.substring(0, 200)}`);
   }
 
   const tokenData = await tokenResponse.json();
