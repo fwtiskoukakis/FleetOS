@@ -243,7 +243,7 @@ async function createVivaWalletCheckout(params: {
   
   // Try each endpoint with different authentication methods
   let tokenResponse: Response | null = null;
-  let tokenUrl = '';
+  let currentTokenUrl = '';
   let lastError: string = '';
   let usedAuthMethod = '';
   
@@ -275,11 +275,11 @@ async function createVivaWalletCheckout(params: {
   for (const endpoint of tokenEndpoints) {
     for (const authMethod of authMethods) {
       try {
-        tokenUrl = endpoint;
+        currentTokenUrl = endpoint;
         usedAuthMethod = authMethod.name;
-        console.log(`Trying Viva Wallet OAuth endpoint: ${tokenUrl} with ${authMethod.name}`);
+        console.log(`Trying Viva Wallet OAuth endpoint: ${currentTokenUrl} with ${authMethod.name}`);
         
-        tokenResponse = await fetch(tokenUrl, {
+        tokenResponse = await fetch(currentTokenUrl, {
           method: 'POST',
           headers: authMethod.headers as HeadersInit,
           body: authMethod.body,
@@ -293,8 +293,8 @@ async function createVivaWalletCheckout(params: {
         
         // If 404, try next endpoint/auth method
         if (tokenResponse.status === 404) {
-          console.log(`Endpoint ${tokenUrl} with ${authMethod.name} returned 404, trying next...`);
-          lastError = `404 Not Found: ${tokenUrl} (${authMethod.name})`;
+          console.log(`Endpoint ${currentTokenUrl} with ${authMethod.name} returned 404, trying next...`);
+          lastError = `404 Not Found: ${currentTokenUrl} (${authMethod.name})`;
           tokenResponse = null;
           continue;
         }
@@ -302,7 +302,7 @@ async function createVivaWalletCheckout(params: {
         break; // Got a response (even if error), stop trying
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
-        console.log(`Error trying ${tokenUrl} with ${authMethod.name}: ${lastError}`);
+        console.log(`Error trying ${currentTokenUrl} with ${authMethod.name}: ${lastError}`);
         tokenResponse = null;
         continue;
       }
