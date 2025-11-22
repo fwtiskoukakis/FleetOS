@@ -1,0 +1,89 @@
+/**
+ * FleetOS Booking Form - Frontend Styles
+ */
+
+.fleetos-booking-form-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.fleetos-booking-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.fleetos-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+@media (max-width: 768px) {
+    .fleetos-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fleetos-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fleetos-form-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.fleetos-form-group .required {
+    color: #dc2626;
+}
+
+.fleetos-form-group input,
+.fleetos-form-group select {
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+.fleetos-form-group input:focus,
+.fleetos-form-group select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.fleetos-submit-button {
+    width: 100%;
+    padding: 14px 24px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.fleetos-submit-button:hover {
+    background: #1d4ed8;
+}
+
+.fleetos-submit-button:active {
+    background: #1e40af;
+}
+
+.fleetos-submit-button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+

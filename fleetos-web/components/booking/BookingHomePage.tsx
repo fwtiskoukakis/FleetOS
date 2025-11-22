@@ -48,16 +48,15 @@ export default function BookingHomePage({
     }
 
     const params = new URLSearchParams({
-      org_slug: organization.slug,
-      pickup_location: searchData.pickupLocation,
       pickup_date: searchData.pickupDate,
       pickup_time: searchData.pickupTime,
-      dropoff_location: searchData.differentDropoff ? searchData.dropoffLocation : searchData.pickupLocation,
+      pickup_location_id: searchData.pickupLocation,
       dropoff_date: searchData.dropoffDate,
       dropoff_time: searchData.dropoffTime,
+      dropoff_location_id: searchData.differentDropoff ? searchData.dropoffLocation : searchData.pickupLocation,
     });
 
-    router.push(`/booking/${organization.slug}/cars?${params.toString()}`);
+    router.push(`/booking/${organization.slug}/search?${params.toString()}`);
   }
 
   const primaryColor = designSettings?.primary_color || organization.brand_color_primary || '#2563eb';
