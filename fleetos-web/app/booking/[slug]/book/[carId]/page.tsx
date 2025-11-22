@@ -342,7 +342,10 @@ export default function BookingFormPage({
       const data = await response.json();
 
       // Redirect to payment or confirmation
-      if (data.payment_url) {
+      // If payment method was selected, always go to payment page
+      if (paymentMethodId) {
+        router.push(`/booking/${routeParams.slug}/payment/${data.booking.id}`);
+      } else if (data.payment_url) {
         router.push(data.payment_url);
       } else {
         router.push(`/booking/${routeParams.slug}/confirmation/${data.booking.id}`);

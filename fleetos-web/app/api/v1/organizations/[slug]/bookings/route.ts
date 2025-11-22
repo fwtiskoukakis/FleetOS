@@ -339,9 +339,11 @@ export async function POST(
         amount_paid: booking.amount_paid,
         amount_remaining: booking.amount_remaining,
       },
-      payment_url: depositAmount < totalWithVat 
+      // Always return payment_url if payment_method_id was provided
+      // Otherwise, return payment_url only if deposit is less than total
+      payment_url: payment_method_id 
         ? `/booking/${slug}/payment/${booking.id}`
-        : null,
+        : (depositAmount < totalWithVat ? `/booking/${slug}/payment/${booking.id}` : null),
     });
   } catch (error) {
     console.error('API error:', error);
