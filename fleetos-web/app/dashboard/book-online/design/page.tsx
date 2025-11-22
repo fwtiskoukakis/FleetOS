@@ -71,15 +71,15 @@ export default function DesignPage() {
 
       const organizationId = await getOrganizationId(user.id);
 
-      let settingsQuery = supabase
+      const queryBuilder = supabase
         .from('booking_design_settings')
         .select('*');
 
-      if (organizationId) {
-        settingsQuery = settingsQuery.eq('organization_id', organizationId);
-      }
+      const query = organizationId 
+        ? queryBuilder.eq('organization_id', organizationId)
+        : queryBuilder;
 
-      const { data, error } = await settingsQuery.maybeSingle();
+      const { data, error } = await query.maybeSingle();
 
       if (error && error.code !== 'PGRST116') { // Not found error
         throw error;
