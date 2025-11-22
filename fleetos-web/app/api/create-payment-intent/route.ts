@@ -200,38 +200,82 @@ async function createVivaWalletCheckout(params: {
   const isTestMode = params.apiKey.includes('test') || params.apiKey.includes('sandbox') || params.apiKey.startsWith('demo');
   
   // Viva Wallet API base URLs
-  // OAuth token endpoint and Orders API both use the API subdomain
-  // Demo: https://demo-api.vivapayments.com
-  // Production: https://api.vivapayments.com
+  // Try different endpoints - OAuth might be on main domain or API subdomain
+  const vivaMainBaseUrl = isTestMode 
+    ? 'https://demo.vivapayments.com' // Test/sandbox environment main domain
+    : 'https://www.vivapayments.com'; // Production environment main domain
+    
   const vivaApiBaseUrl = isTestMode 
     ? 'https://demo-api.vivapayments.com' // Test/sandbox environment API
     : 'https://api.vivapayments.com'; // Production environment API
   
-  // OAuth token endpoint: /connect/token (or /oauth2/token)
-  // Try /connect/token first (Viva Wallet standard)
-  let tokenUrl = `${vivaApiBaseUrl}/connect/token`;
+  // Try OAuth endpoints in order: /connect/token is the standard, but might be on different base URLs
+  const tokenEndpoints = [
+    `${vivaMainBaseUrl}/connect/token`, // Main domain /connect/token (most common)
+    `${vivaApiBaseUrl}/connect/token`,  // API subdomain /connect/token
+    `${vivaMainBaseUrl}/oauth2/token`,  // Main domain /oauth2/token (fallback)
+    `${vivaApiBaseUrl}/oauth2/token`,   // API subdomain /oauth2/token (fallback)
+  ];
   
   // Create Basic Auth header (Buffer is available in Node.js runtime)
   const credentials = Buffer.from(`${params.apiKey}:${params.apiSecret}`).toString('base64');
   
   console.log('Attempting Viva Wallet authentication:', {
     isTestMode,
+    vivaMainBaseUrl,
     vivaApiBaseUrl,
-    tokenUrl,
+    tokenEndpoints,
     hasApiKey: !!params.apiKey,
     hasApiSecret: !!params.apiSecret,
   });
   
-  const tokenResponse = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${credentials}`,
-    },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-    }),
-  });
+  // Try each endpoint until one works
+  let tokenResponse: Response | null = null;
+  let tokenUrl = '';
+  let lastError: string = '';
+  
+  for (const endpoint of tokenEndpoints) {
+    try {
+      tokenUrl = endpoint;
+      console.log(`Trying Viva Wallet OAuth endpoint: ${tokenUrl}`);
+      
+      tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${credentials}`,
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+        }),
+      });
+      
+      // If we got a successful response or a clear error (not 404), stop trying
+      if (tokenResponse.ok || (tokenResponse.status !== 404 && tokenResponse.status !== 0)) {
+        console.log(`Endpoint ${tokenUrl} returned status ${tokenResponse.status}`);
+        break;
+      }
+      
+      // If 404, try next endpoint
+      if (tokenResponse.status === 404) {
+        console.log(`Endpoint ${tokenUrl} returned 404, trying next...`);
+        lastError = `404 Not Found: ${tokenUrl}`;
+        tokenResponse = null;
+        continue;
+      }
+      
+      break; // Got a response (even if error), stop trying
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      console.log(`Error trying ${tokenUrl}: ${lastError}`);
+      tokenResponse = null;
+      continue;
+    }
+  }
+  
+  if (!tokenResponse) {
+    throw new Error(`Failed to reach any Viva Wallet OAuth endpoint. Tried: ${tokenEndpoints.join(', ')}. Last error: ${lastError}`);
+  }
 
   // Check content type before processing
   const tokenContentType = tokenResponse.headers.get('content-type');
