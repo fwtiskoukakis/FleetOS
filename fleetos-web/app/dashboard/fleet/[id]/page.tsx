@@ -18,7 +18,8 @@ import {
   DollarSign,
   FileText,
   MapPin,
-  Phone
+  Phone,
+  User
 } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 import { format, parseISO } from 'date-fns';
