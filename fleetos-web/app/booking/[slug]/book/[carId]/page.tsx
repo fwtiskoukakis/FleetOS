@@ -98,6 +98,7 @@ export default function BookingFormPage({
 
   // Payment
   const [paymentMethodId, setPaymentMethodId] = useState<string>('');
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; name: string; name_el: string; provider: string; is_active: boolean }>>([]);
 
   // Terms
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -119,13 +120,33 @@ export default function BookingFormPage({
       return;
     }
     loadCarDetails();
+    loadPaymentMethods();
   }, [routeParams?.carId, routeParams?.slug, pickupDate, dropoffDate, pickupLocationId, dropoffLocationId]);
 
+  async function loadPaymentMethods() {
+    if (!routeParams) return;
+    try {
+      const response = await fetch(`/api/v1/organizations/${routeParams.slug}/payment-methods`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const activeMethods = (data.payment_methods || []).filter((pm: any) => pm.is_active && pm.provider !== 'cash');
+        setPaymentMethods(activeMethods);
+        // Auto-select first payment method if available
+        if (activeMethods.length > 0 && !paymentMethodId) {
+          setPaymentMethodId(activeMethods[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading payment methods:', err);
+    }
+  }
+
   useEffect(() => {
-    if (car && extras.length > 0 && insuranceTypes.length > 0) {
+    if (car && pricingBreakdown) {
       calculatePricing();
     }
-  }, [selectedExtras, selectedInsurance, car, extras, insuranceTypes]);
+  }, [selectedExtras, selectedInsurance, car, extras, insuranceTypes, pricingBreakdown]);
 
   async function loadCarDetails() {
     if (!routeParams) return;
@@ -133,9 +154,13 @@ export default function BookingFormPage({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `/api/v1/organizations/${routeParams.slug}/cars/${routeParams.carId}?pickup_date=${pickupDate}&dropoff_date=${dropoffDate}`
-      );
+      const url = new URL(`/api/v1/organizations/${routeParams.slug}/cars/${routeParams.carId}`, window.location.origin);
+      url.searchParams.set('pickup_date', pickupDate);
+      url.searchParams.set('dropoff_date', dropoffDate);
+      if (pickupLocationId) url.searchParams.set('pickup_location_id', pickupLocationId);
+      if (dropoffLocationId) url.searchParams.set('dropoff_location_id', dropoffLocationId);
+      
+      const response = await fetch(url.toString());
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -146,7 +171,18 @@ export default function BookingFormPage({
       setCar(data.car);
       setExtras(data.extras || []);
       setInsuranceTypes(data.insurance_types || []);
-      setPricingBreakdown(data.pricing_breakdown);
+      
+      // Set pricing breakdown with initial values
+      if (data.pricing_breakdown) {
+        setPricingBreakdown({
+          ...data.pricing_breakdown,
+          extras_price: 0,
+          insurance_price: 0,
+          subtotal: data.pricing_breakdown.base_price + data.pricing_breakdown.location_fees,
+          vat: (data.pricing_breakdown.base_price + data.pricing_breakdown.location_fees) * 0.24,
+          total: (data.pricing_breakdown.base_price + data.pricing_breakdown.location_fees) * 1.24,
+        });
+      }
 
       // Set default insurance
       const defaultInsurance = data.insurance_types?.find((ins: Insurance) => ins.is_default);
@@ -164,7 +200,9 @@ export default function BookingFormPage({
   function calculatePricing() {
     if (!car || !pricingBreakdown) return;
 
-    const rentalDays = pricingBreakdown.rental_days;
+    const rentalDays = pricingBreakdown.rental_days || 1;
+    const basePrice = pricingBreakdown.base_price || 0;
+    const locationFees = pricingBreakdown.location_fees || 0;
     let extrasPrice = 0;
     let insurancePrice = 0;
 
@@ -173,10 +211,11 @@ export default function BookingFormPage({
       if (quantity > 0) {
         const extra = extras.find(e => e.id === extraId);
         if (extra) {
+          const extraPrice = parseFloat(extra.price_per_day?.toString() || '0');
           if (extra.is_one_time_fee) {
-            extrasPrice += parseFloat(extra.price_per_day.toString()) * quantity;
+            extrasPrice += extraPrice * quantity;
           } else {
-            extrasPrice += parseFloat(extra.price_per_day.toString()) * rentalDays * quantity;
+            extrasPrice += extraPrice * rentalDays * quantity;
           }
         }
       }
@@ -186,11 +225,12 @@ export default function BookingFormPage({
     if (selectedInsurance) {
       const insurance = insuranceTypes.find(i => i.id === selectedInsurance);
       if (insurance) {
-        insurancePrice = parseFloat(insurance.price_per_day.toString()) * rentalDays;
+        const insurancePricePerDay = parseFloat(insurance.price_per_day?.toString() || '0');
+        insurancePrice = insurancePricePerDay * rentalDays;
       }
     }
 
-    const subtotal = pricingBreakdown.base_price + extrasPrice + insurancePrice + pricingBreakdown.location_fees;
+    const subtotal = basePrice + extrasPrice + insurancePrice + locationFees;
     const vat = subtotal * 0.24; // 24% VAT for Greece
     const total = subtotal + vat;
 
@@ -736,21 +776,45 @@ export default function BookingFormPage({
               Payment Method
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              You can pay now or choose to pay on arrival. Payment will be processed on the next step.
+              Select your preferred payment method. Payment will be processed on the next step.
             </p>
-            {/* Payment methods will be loaded from API */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value=""
-                  checked={!paymentMethodId}
-                  onChange={() => setPaymentMethodId('')}
-                />
-                <span>Pay on Arrival</span>
-              </label>
-            </div>
+            {paymentMethods.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                <p className="text-sm">No payment methods available. Please contact support.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {paymentMethods.map((method) => (
+                  <label
+                    key={method.id}
+                    className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                      paymentMethodId === method.id
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value={method.id}
+                      checked={paymentMethodId === method.id}
+                      onChange={() => setPaymentMethodId(method.id)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">{method.name_el || method.name}</span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {method.provider === 'stripe' && 'Pay securely with credit/debit card'}
+                        {method.provider === 'viva_wallet' && 'Pay with Viva Wallet'}
+                        {method.provider === 'bank_transfer' && 'Transfer funds directly to our bank account'}
+                        {method.provider === 'paypal' && 'Pay with PayPal'}
+                        {method.provider === 'revolut' && 'Pay with Revolut'}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Terms & Conditions */}

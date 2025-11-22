@@ -74,6 +74,10 @@ export async function GET(
     const dropoff = new Date(dropoffDate);
     const rentalDays = Math.ceil((dropoff.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
 
+    // Get pickup and dropoff location IDs from query params
+    const pickupLocationId = searchParams.get('pickup_location_id');
+    const dropoffLocationId = searchParams.get('dropoff_location_id');
+
     // Get pricing
     const pricing = await calculatePricing(
       car.id,
@@ -83,6 +87,25 @@ export async function GET(
       rentalDays,
       org.id
     );
+
+    // Get location fees
+    let locationFees = 0;
+    if (pickupLocationId && dropoffLocationId) {
+      const { data: pickupLocation } = await supabase
+        .from('locations')
+        .select('extra_pickup_fee')
+        .eq('id', pickupLocationId)
+        .single();
+
+      const { data: dropoffLocation } = await supabase
+        .from('locations')
+        .select('extra_delivery_fee')
+        .eq('id', dropoffLocationId)
+        .single();
+
+      locationFees = (parseFloat(pickupLocation?.extra_pickup_fee?.toString() || '0')) +
+                     (parseFloat(dropoffLocation?.extra_delivery_fee?.toString() || '0'));
+    }
 
     // Get extras
     const { data: extras } = await supabase
@@ -99,6 +122,11 @@ export async function GET(
       .eq('organization_id', org.id)
       .eq('is_active', true)
       .order('display_order', { ascending: true });
+
+    const basePrice = pricing?.basePrice || 0;
+    const subtotal = basePrice + locationFees;
+    const vat = subtotal * 0.24; // 24% VAT for Greece
+    const total = subtotal + vat;
 
     return NextResponse.json({
       car: {
@@ -117,11 +145,15 @@ export async function GET(
       extras: extras || [],
       insurance_types: insuranceTypes || [],
       pricing_breakdown: {
-        base_price: pricing?.basePrice || 0,
+        base_price: basePrice,
         rental_days: rentalDays,
         daily_rate: pricing?.pricePerDay || 0,
-        location_fees: 0, // Will be calculated on booking page
-        subtotal: pricing?.basePrice || 0,
+        location_fees: locationFees,
+        extras_price: 0,
+        insurance_price: 0,
+        subtotal: subtotal,
+        vat: vat,
+        total: total,
       },
     });
   } catch (error) {
