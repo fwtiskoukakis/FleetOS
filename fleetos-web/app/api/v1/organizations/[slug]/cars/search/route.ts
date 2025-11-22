@@ -21,7 +21,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const supabase = getSupabaseClient();
+    const supabaseClient = getSupabaseClient();
     const { slug } = await params;
     const body = await request.json();
     const {
@@ -43,7 +43,7 @@ export async function POST(
     }
 
     // Get organization by slug
-    const { data: org, error: orgError } = await supabase
+    const { data: org, error: orgError } = await supabaseClient
       .from('organizations')
       .select('id, subscription_status, is_active')
       .eq('slug', slug)
@@ -78,7 +78,6 @@ export async function POST(
     }
 
     // Get all active booking cars for this organization
-    const supabaseClient = getSupabaseClient();
     let carsQuery = supabaseClient
       .from('booking_cars')
       .select(`
