@@ -102,6 +102,22 @@ export async function POST(request: NextRequest) {
       // Viva Wallet checkout session creation
       try {
         // Create Viva Wallet checkout session
+        // Map country name to ISO 3166-1 alpha-2 country code for Viva Wallet
+        const getCountryCode = (country: string | null | undefined): string => {
+          if (!country) return 'GR'; // Default to Greece
+          const countryMap: Record<string, string> = {
+            'Greece': 'GR', 'Greek': 'GR', 'Ελλάδα': 'GR',
+            'United Kingdom': 'GB', 'UK': 'GB', 'Britain': 'GB',
+            'United States': 'US', 'USA': 'US', 'America': 'US',
+            'Germany': 'DE', 'Deutschland': 'DE',
+            'France': 'FR',
+            'Italy': 'IT', 'Italia': 'IT',
+            'Spain': 'ES', 'España': 'ES',
+            // Add more mappings as needed
+          };
+          return countryMap[country] || country.substring(0, 2).toUpperCase() || 'GR';
+        };
+
         const checkoutUrl = await createVivaWalletCheckout({
           apiKey,
           apiSecret,
@@ -112,6 +128,9 @@ export async function POST(request: NextRequest) {
           bookingNumber: booking.booking_number || `BK-${bookingId.substring(0, 8)}`,
           customerEmail: booking.customer_email,
           customerName: booking.customer_full_name,
+          customerPhone: booking.customer_phone || undefined,
+          countryCode: getCountryCode(booking.customer_country),
+          requestLang: 'el-GR', // Default to Greek, can be made dynamic based on organization settings
           successUrl: `${baseUrl}/booking/${orgSlug}/confirmation/${bookingId}?payment_success=true`,
           cancelUrl: `${baseUrl}/booking/${orgSlug}/payment/${bookingId}?payment_cancelled=true`,
         });
@@ -191,6 +210,9 @@ async function createVivaWalletCheckout(params: {
   bookingNumber: string;
   customerEmail: string;
   customerName: string;
+  customerPhone?: string;
+  countryCode?: string;
+  requestLang?: string;
   successUrl: string;
   cancelUrl: string;
 }): Promise<string> {
@@ -388,18 +410,35 @@ async function createVivaWalletCheckout(params: {
     tags: [params.bookingId],
   };
 
-  // Add customer info if available
+  // Add customer info if available (recommended for better conversion)
   if (params.customerEmail) {
     orderData.customer = {
       email: params.customerEmail,
       fullName: params.customerName || '',
     };
+    // Add phone if available (optional but recommended)
+    if (params.customerPhone) {
+      orderData.customer.phone = params.customerPhone;
+    }
+    // Add country code if available (affects payment methods offered)
+    if (params.countryCode) {
+      orderData.customer.countryCode = params.countryCode;
+    }
+    // Add request language if available (payment page language)
+    if (params.requestLang) {
+      orderData.customer.requestLang = params.requestLang;
+    }
   }
+  
+  // Enable payment notification (Viva sends email to customer)
+  orderData.paymentNotification = true;
 
-  // Add source code (merchant ID) if provided
-  if (params.merchantId) {
-    orderData.sourceCode = params.merchantId;
+  // Add source code (REQUIRED - 4-digit code from payment source)
+  // According to Viva Wallet documentation: "Keep in mind that you need to define the sourceCode parameter when creating the payment order"
+  if (!params.merchantId || params.merchantId.trim() === '') {
+    throw new Error('Source Code is required for Viva Wallet orders. Please configure it in your payment method settings (4-digit code from your payment source).');
   }
+  orderData.sourceCode = params.merchantId.trim();
 
   // Add redirect URLs
   if (params.successUrl) {
@@ -468,16 +507,16 @@ async function createVivaWalletCheckout(params: {
     return orderResult.url;
   } else if (orderResult.orderCode) {
     // If only orderCode is returned, construct the checkout URL
-    // Format: https://www.vivawallet.com/web/checkout?ref={orderCode}
+    // Format: https://www.vivapayments.com/web/checkout?ref={orderCode} (per official documentation)
     const checkoutBase = isTestMode 
       ? 'https://demo.vivapayments.com/web/checkout'
-      : 'https://www.vivawallet.com/web/checkout';
+      : 'https://www.vivapayments.com/web/checkout'; // Fixed: vivapayments.com not vivawallet.com
     return `${checkoutBase}?ref=${orderResult.orderCode}`;
   } else if (orderResult.OrderCode) {
     // Some APIs return capitalized OrderCode
     const checkoutBase = isTestMode 
       ? 'https://demo.vivapayments.com/web/checkout'
-      : 'https://www.vivawallet.com/web/checkout';
+      : 'https://www.vivapayments.com/web/checkout'; // Fixed: vivapayments.com not vivawallet.com
     return `${checkoutBase}?ref=${orderResult.OrderCode}`;
   } else {
     console.error('Unexpected Viva Wallet response:', orderResult);
