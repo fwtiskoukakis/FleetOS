@@ -124,12 +124,13 @@ export default function PaymentMethodsPage() {
       provider: method.provider || 'stripe',
       is_active: method.is_active ?? true,
       requires_full_payment: method.requires_full_payment || false,
-      deposit_percentage: method.deposit_percentage.toString() || '30',
-      min_deposit_amount: method.min_deposit_amount.toString() || '50',
-      api_key: '', // Don't show existing keys for security
-      api_secret: '', // Don't show existing secrets for security
-      merchant_id: '', // Don't show existing merchant ID for security
-      webhook_secret: '', // Don't show existing webhook secret for security
+      deposit_percentage: method.deposit_percentage?.toString() || '30',
+      min_deposit_amount: method.min_deposit_amount?.toString() || '50',
+      // Show existing credentials so user can verify they're correct
+      api_key: method.api_key_encrypted || '',
+      api_secret: method.api_secret_encrypted || '',
+      merchant_id: method.merchant_id || '',
+      webhook_secret: method.webhook_secret || '',
     });
     setModalVisible(true);
   }
