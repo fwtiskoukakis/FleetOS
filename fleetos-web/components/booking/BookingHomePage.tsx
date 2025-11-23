@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Calendar, MapPin, Clock, ChevronRight, Car } from 'lucide-react';
 import FleetOSLogo from '@/components/FleetOSLogo';
 import { createClientComponentClient } from '@/lib/supabase';
@@ -266,15 +267,58 @@ export default function BookingHomePage({
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-300 py-8">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-sm">
+          <div className="grid md:grid-cols-3 gap-6 mb-6">
+            {/* Company Info */}
+            <div>
+              <h4 className="font-semibold text-white mb-3">About {companyName}</h4>
+              <p className="text-sm">
+                Professional vehicle rental services. Book online with confidence.
+              </p>
+            </div>
+            
+            {/* Contact Information */}
+            <div>
+              <h4 className="font-semibold text-white mb-3">Customer Service</h4>
+              <ul className="space-y-2 text-sm">
+                {organization.phone_primary && (
+                  <li>
+                    <strong>Phone:</strong> <a href={`tel:${organization.phone_primary}`} className="hover:text-white">{organization.phone_primary}</a>
+                  </li>
+                )}
+                {organization.email && (
+                  <li>
+                    <strong>Email:</strong> <a href={`mailto:${organization.email}`} className="hover:text-white">{organization.email}</a>
+                  </li>
+                )}
+                {!organization.email && (
+                  <li>
+                    <strong>Email:</strong> <a href="mailto:support@fleetos.eu" className="hover:text-white">support@fleetos.eu</a>
+                  </li>
+                )}
+                <li>
+                  <strong>Hours:</strong> Mon-Fri 9:00-18:00, Sat 10:00-15:00 (Greek Time)
+                </li>
+              </ul>
+            </div>
+            
+            {/* Legal Links */}
+            <div>
+              <h4 className="font-semibold text-white mb-3">Legal</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/terms" className="hover:text-white">Terms & Conditions</Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-800 pt-6 text-center text-sm">
+            <p>
               &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
             </p>
-            {organization.phone_primary && (
-              <p className="text-sm mt-2">
-                Contact: {organization.phone_primary}
-              </p>
-            )}
           </div>
         </div>
       </footer>

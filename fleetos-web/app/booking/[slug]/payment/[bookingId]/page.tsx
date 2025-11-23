@@ -398,11 +398,36 @@ export default function PaymentPage({
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold text-blue-900 mb-1">Secure Payment</h3>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-800 mb-3">
                 Your payment information is encrypted and secure. We never store your full card details.
               </p>
+              
+              {/* Viva Wallet Logo */}
+              {paymentMethods.some(pm => pm.provider === 'viva_wallet') && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-blue-200">
+                  <span className="text-xs text-blue-700 font-medium">Secure payments powered by:</span>
+                  <a 
+                    href="https://www.vivapayments.com" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center"
+                    title="Viva Wallet - Secure Payment Processing"
+                  >
+                    <img 
+                      src="https://www.vivapayments.com/wp-content/uploads/2023/04/VivaWallet-logo-RGB-HORIZONTAL-V1-2.png" 
+                      alt="Viva Wallet" 
+                      className="h-6 opacity-90 hover:opacity-100 transition-opacity"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -428,7 +453,10 @@ export default function PaymentPage({
 
         {/* Terms */}
         <p className="text-xs text-gray-500 text-center mt-4">
-          By proceeding, you agree to our Terms & Conditions and Privacy Policy.
+          By proceeding, you agree to our{' '}
+          <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">Terms & Conditions</Link>
+          {' '}and{' '}
+          <Link href="/privacy" target="_blank" className="text-blue-600 hover:underline">Privacy Policy</Link>.
         </p>
       </main>
     </div>

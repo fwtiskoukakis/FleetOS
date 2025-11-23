@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
           return countryMap[country] || country.substring(0, 2).toUpperCase() || 'GR';
         };
 
-        const checkoutUrl = await createVivaWalletCheckout({
+        const { checkoutUrl, orderCode } = await createVivaWalletCheckout({
           apiKey,
           apiSecret,
           merchantId,
@@ -131,11 +131,11 @@ export async function POST(request: NextRequest) {
           customerPhone: booking.customer_phone || undefined,
           countryCode: getCountryCode(booking.customer_country),
           requestLang: 'el-GR', // Default to Greek, can be made dynamic based on organization settings
-          successUrl: `${baseUrl}/booking/${orgSlug}/confirmation/${bookingId}?payment_success=true`,
-          cancelUrl: `${baseUrl}/booking/${orgSlug}/payment/${bookingId}?payment_cancelled=true`,
+          successUrl: `${baseUrl}/booking/payment-success`,
+          cancelUrl: `${baseUrl}/booking/payment-failure`,
         });
 
-        // Store pending transaction
+        // Store pending transaction with order code
         await supabase.from('payment_transactions').insert({
           booking_id: bookingId,
           transaction_id: `vw_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -144,6 +144,10 @@ export async function POST(request: NextRequest) {
           transaction_type: amount >= booking.total_price ? 'full_payment' : 'deposit',
           status: 'pending',
           payment_provider: 'viva_wallet',
+          provider_response: orderCode ? {
+            order_code: orderCode.toString(),
+            orderCode: orderCode.toString(), // Store both formats
+          } : null,
         });
 
         return NextResponse.json({
@@ -215,7 +219,7 @@ async function createVivaWalletCheckout(params: {
   requestLang?: string;
   successUrl: string;
   cancelUrl: string;
-}): Promise<string> {
+}): Promise<{ checkoutUrl: string; orderCode?: string | number }> {
   // Viva Wallet uses OAuth2 for authentication
   // Step 1: Get access token
   // Check if we're in test mode (credentials starting with specific patterns indicate test)
@@ -499,28 +503,33 @@ async function createVivaWalletCheckout(params: {
   const orderResult = await orderResponse.json();
   console.log('Viva Wallet order created:', orderResult);
   
+  // Extract order code from response
+  const orderCode = orderResult.orderCode || orderResult.OrderCode;
+  
   // Viva Wallet returns the checkout URL in different formats depending on the API version
   // Check for common response formats
+  let checkoutUrl: string;
+  
   if (orderResult.checkoutUrl) {
-    return orderResult.checkoutUrl;
+    checkoutUrl = orderResult.checkoutUrl;
   } else if (orderResult.url) {
-    return orderResult.url;
-  } else if (orderResult.orderCode) {
+    checkoutUrl = orderResult.url;
+  } else if (orderCode) {
     // If only orderCode is returned, construct the checkout URL
     // Format: https://www.vivapayments.com/web/checkout?ref={orderCode} (per official documentation)
     const checkoutBase = isTestMode 
       ? 'https://demo.vivapayments.com/web/checkout'
       : 'https://www.vivapayments.com/web/checkout'; // Fixed: vivapayments.com not vivawallet.com
-    return `${checkoutBase}?ref=${orderResult.orderCode}`;
-  } else if (orderResult.OrderCode) {
-    // Some APIs return capitalized OrderCode
-    const checkoutBase = isTestMode 
-      ? 'https://demo.vivapayments.com/web/checkout'
-      : 'https://www.vivapayments.com/web/checkout'; // Fixed: vivapayments.com not vivawallet.com
-    return `${checkoutBase}?ref=${orderResult.OrderCode}`;
+    checkoutUrl = `${checkoutBase}?ref=${orderCode}`;
   } else {
     console.error('Unexpected Viva Wallet response:', orderResult);
     throw new Error(`Viva Wallet returned an unexpected response format. Response: ${JSON.stringify(orderResult)}`);
   }
+  
+  // Return both checkout URL and order code
+  return {
+    checkoutUrl,
+    orderCode: orderCode || undefined,
+  };
 }
 

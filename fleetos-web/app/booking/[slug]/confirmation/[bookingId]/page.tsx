@@ -46,6 +46,11 @@ export default function ConfirmationPage({
 
   useEffect(() => {
     if (routeParams) {
+      console.log('Confirmation page loaded', {
+        bookingId: routeParams.bookingId,
+        searchParams: Object.fromEntries(searchParams.entries()),
+      });
+      
       loadBooking();
       // Check if redirected from Viva Wallet
       // Viva Wallet redirects with:
@@ -55,14 +60,24 @@ export default function ConfirmationPage({
       const t = searchParams.get('t'); // Transaction ID (indicates success)
       const s = searchParams.get('s'); // Order code (16-digit order code)
       const eventId = searchParams.get('eventId'); // Error code (indicates failure if present)
+      const paymentSuccess = searchParams.get('payment_success');
+      
+      console.log('Viva Wallet redirect parameters:', { t, s, eventId, paymentSuccess });
       
       // If transaction ID is present, payment was successful - verify it
       if (t && s) {
-        // Verify and process payment
+        console.log('Payment successful, verifying...');
         verifyVivaWalletPayment(t, s);
+      } else if (paymentSuccess === 'true') {
+        // Also check for payment_success parameter as fallback
+        console.log('Payment success flag found, verifying payment...');
+        verifyVivaWalletPayment('', '');
       } else if (eventId) {
         // Payment failed - show error
+        console.error('Payment failed with event ID:', eventId);
         setError(`Payment failed. Error code: ${eventId}`);
+      } else {
+        console.log('No Viva Wallet redirect parameters found');
       }
     }
   }, [routeParams, searchParams]);
@@ -114,13 +129,19 @@ export default function ConfirmationPage({
   async function verifyVivaWalletPayment(transactionId: string, orderCode: string) {
     if (!routeParams) return;
     
-    // If no transaction ID or order code provided, skip verification
+    console.log('Verifying Viva Wallet payment:', { transactionId, orderCode, bookingId: routeParams.bookingId });
+    
+    // If no transaction ID or order code provided, check if payment was already verified
     if (!transactionId && !orderCode) {
+      console.log('No transaction ID or order code provided, checking booking status...');
+      // Just reload booking to see current status
+      await loadBooking();
       return;
     }
     
     try {
       // Call API to verify payment and update booking
+      console.log('Calling verify payment API...');
       const response = await fetch(`/api/v1/bookings/${routeParams.bookingId}/verify-viva-payment`, {
         method: 'POST',
         headers: {
@@ -132,15 +153,21 @@ export default function ConfirmationPage({
         }),
       });
 
+      console.log('Verify payment API response status:', response.status);
+      
       if (response.ok) {
+        const data = await response.json();
+        console.log('Payment verified successfully:', data);
         // Reload booking to get updated status
         await loadBooking();
       } else {
         const errorData = await response.json();
         console.error('Payment verification failed:', errorData);
+        setError(`Payment verification failed: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error verifying payment:', error);
+      setError('Error verifying payment. Please contact support if payment was successful.');
     }
   }
 
@@ -294,8 +321,19 @@ export default function ConfirmationPage({
         </div>
 
         {/* Contact Info */}
-        <div className="mt-8 text-center text-sm text-gray-600">
-          <p>Need help? Contact us at support@fleetos.eu</p>
+        <div className="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6">
+          <h3 className="font-semibold text-gray-900 mb-3 text-center">Customer Service</h3>
+          <div className="space-y-2 text-sm text-gray-600 text-center">
+            <p>
+              <strong>Email:</strong> <a href="mailto:support@fleetos.eu" className="text-blue-600 hover:underline">support@fleetos.eu</a>
+            </p>
+            <p>
+              <strong>Business Hours:</strong> Monday - Friday: 9:00 - 18:00, Saturday: 10:00 - 15:00 (Greek Time)
+            </p>
+            <p className="mt-3">
+              Need help? Our customer service team is here to assist you with any questions or concerns.
+            </p>
+          </div>
         </div>
       </main>
     </div>

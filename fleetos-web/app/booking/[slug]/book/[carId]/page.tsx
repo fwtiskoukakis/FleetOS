@@ -964,7 +964,7 @@ export default function BookingFormPage({
                   className="mt-1"
                 />
                 <span className="text-sm text-gray-700">
-                  I agree to the <a href="#" className="text-blue-600 hover:underline">Terms & Conditions</a> <span className="text-red-500">*</span>
+                  I agree to the <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">Terms & Conditions</Link> <span className="text-red-500">*</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
@@ -975,7 +975,7 @@ export default function BookingFormPage({
                   className="mt-1"
                 />
                 <span className="text-sm text-gray-700">
-                  I agree to the <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a> <span className="text-red-500">*</span>
+                  I agree to the <Link href="/privacy" target="_blank" className="text-blue-600 hover:underline">Privacy Policy</Link> <span className="text-red-500">*</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
