@@ -47,8 +47,25 @@ export default function ConfirmationPage({
   useEffect(() => {
     if (routeParams) {
       loadBooking();
+      // Check if redirected from Viva Wallet
+      // Viva Wallet redirects with:
+      // - Success: t (transaction ID), s (order code), lang, eci
+      // - Failure: s (order code), lang, eventId
+      // Presence of 't' (transaction ID) indicates successful payment
+      const t = searchParams.get('t'); // Transaction ID (indicates success)
+      const s = searchParams.get('s'); // Order code (16-digit order code)
+      const eventId = searchParams.get('eventId'); // Error code (indicates failure if present)
+      
+      // If transaction ID is present, payment was successful - verify it
+      if (t && s) {
+        // Verify and process payment
+        verifyVivaWalletPayment(t, s);
+      } else if (eventId) {
+        // Payment failed - show error
+        setError(`Payment failed. Error code: ${eventId}`);
+      }
     }
-  }, [routeParams]);
+  }, [routeParams, searchParams]);
 
   async function loadBooking() {
     if (!routeParams) return;
@@ -91,6 +108,39 @@ export default function ConfirmationPage({
       setError(err instanceof Error ? err.message : 'Failed to load booking confirmation');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function verifyVivaWalletPayment(transactionId: string, orderCode: string) {
+    if (!routeParams) return;
+    
+    // If no transaction ID or order code provided, skip verification
+    if (!transactionId && !orderCode) {
+      return;
+    }
+    
+    try {
+      // Call API to verify payment and update booking
+      const response = await fetch(`/api/v1/bookings/${routeParams.bookingId}/verify-viva-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transaction_id: transactionId || undefined,
+          order_code: orderCode || undefined,
+        }),
+      });
+
+      if (response.ok) {
+        // Reload booking to get updated status
+        await loadBooking();
+      } else {
+        const errorData = await response.json();
+        console.error('Payment verification failed:', errorData);
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error);
     }
   }
 

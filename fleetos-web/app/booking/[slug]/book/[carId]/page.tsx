@@ -374,40 +374,60 @@ export default function BookingFormPage({
 
       console.log('Booking created successfully:', data);
       console.log('Payment method ID:', paymentMethodId);
-      console.log('Payment URL:', data.payment_url);
 
-      // Redirect to payment or confirmation
-      // If payment method was selected, always go to payment page
-      let redirectUrl: string | null = null;
-      
+      // If payment method is selected, get checkout URL and redirect directly to payment gateway
       if (paymentMethodId && data.booking?.id) {
-        redirectUrl = `/booking/${routeParams.slug}/payment/${data.booking.id}`;
-        console.log('Redirecting to payment page:', redirectUrl);
-      } else if (data.payment_url) {
-        redirectUrl = data.payment_url;
-        console.log('Redirecting to payment URL:', redirectUrl);
+        try {
+          // Get selected payment method details to determine provider
+          const selectedMethod = paymentMethods.find(pm => pm.id === paymentMethodId);
+          
+          if (selectedMethod && (selectedMethod.provider === 'viva_wallet' || selectedMethod.provider === 'stripe')) {
+            // Create payment intent and get checkout URL
+            const paymentResponse = await fetch('/api/create-payment-intent', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                bookingId: data.booking.id,
+                amount: pricingBreakdown.total,
+                payment_method_id: paymentMethodId,
+                provider: selectedMethod.provider,
+              }),
+            });
+
+            if (!paymentResponse.ok) {
+              const errorData = await paymentResponse.json();
+              throw new Error(errorData.error || 'Failed to create payment checkout');
+            }
+
+            const paymentData = await paymentResponse.json();
+            
+            // Redirect directly to Viva Wallet or Stripe checkout
+            if (paymentData.checkout_url) {
+              console.log('Redirecting directly to checkout:', paymentData.checkout_url);
+              window.location.href = paymentData.checkout_url;
+              return; // Exit early, redirect is happening
+            }
+          }
+        } catch (paymentError) {
+          console.error('Error creating payment checkout:', paymentError);
+          setError(paymentError instanceof Error ? paymentError.message : 'Failed to create payment checkout. Please try again.');
+          setSaving(false);
+          return;
+        }
+        
+        // Fallback: go to payment page if checkout URL couldn't be created
+        const redirectUrl = `/booking/${routeParams.slug}/payment/${data.booking.id}`;
+        console.log('Fallback: Redirecting to payment page:', redirectUrl);
+        window.location.href = redirectUrl;
       } else if (data.booking?.id) {
-        redirectUrl = `/booking/${routeParams.slug}/confirmation/${data.booking.id}`;
+        // No payment method selected, go to confirmation
+        const redirectUrl = `/booking/${routeParams.slug}/confirmation/${data.booking.id}`;
         console.log('Redirecting to confirmation page:', redirectUrl);
+        window.location.href = redirectUrl;
       } else {
         throw new Error('Booking created but no booking ID returned');
-      }
-
-      // Use router.push with a fallback to window.location
-      if (redirectUrl) {
-        try {
-          router.push(redirectUrl);
-          // Fallback: force navigation after a short delay if router doesn't work
-          setTimeout(() => {
-            if (window.location.pathname !== redirectUrl) {
-              console.log('Router push may have failed, using window.location');
-              window.location.href = redirectUrl;
-            }
-          }, 500);
-        } catch (redirectError) {
-          console.error('Router push failed, using window.location:', redirectError);
-          window.location.href = redirectUrl;
-        }
       }
     } catch (err) {
       console.error('Error creating booking:', err);
