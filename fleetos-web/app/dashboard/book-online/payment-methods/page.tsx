@@ -508,15 +508,23 @@ export default function PaymentMethodsPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Merchant ID (optional)
+                          Viva Wallet Source Code <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={formData.merchant_id}
                           onChange={(e) => setFormData({ ...formData, merchant_id: e.target.value })}
-                          placeholder="Your Merchant ID"
+                          placeholder="1234 (4-digit code from Viva Wallet)"
+                          maxLength={4}
+                          pattern="[0-9]{4}"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Find this in Viva Wallet: <strong>Sales</strong> → <strong>Online Payments</strong> → <strong>Websites/Apps</strong> → Your payment source → <strong>Source Code</strong>
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          This is a 4-digit code (e.g., "1234") that identifies your payment source. Not the Merchant ID.
+                        </p>
                       </div>
                     </>
                   )}
