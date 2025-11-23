@@ -374,14 +374,46 @@ export default function BookingFormPage({
 
       console.log('Booking created successfully:', data);
       console.log('Payment method ID:', paymentMethodId);
+      console.log('Booking ID:', data.booking?.id);
 
       // If payment method is selected, get checkout URL and redirect directly to payment gateway
+      if (!paymentMethodId) {
+        console.error('No payment method ID found, cannot proceed to payment');
+        setError('Payment method not selected. Please select a payment method and try again.');
+        setSaving(false);
+        return;
+      }
+
+      if (!data.booking?.id) {
+        console.error('No booking ID returned from API');
+        setError('Booking created but no booking ID returned. Please contact support.');
+        setSaving(false);
+        return;
+      }
+
       if (paymentMethodId && data.booking?.id) {
+        console.log('Payment method selected, creating payment checkout...', {
+          paymentMethodId,
+          bookingId: data.booking.id,
+          amount: pricingBreakdown.total,
+          paymentMethodsCount: paymentMethods.length,
+        });
+
         try {
           // Get selected payment method details to determine provider
           const selectedMethod = paymentMethods.find(pm => pm.id === paymentMethodId);
+          console.log('Selected payment method:', selectedMethod);
           
-          if (selectedMethod && (selectedMethod.provider === 'viva_wallet' || selectedMethod.provider === 'stripe')) {
+          if (!selectedMethod) {
+            console.warn('Payment method not found in list, using fallback redirect');
+            const redirectUrl = `/booking/${routeParams.slug}/payment/${data.booking.id}`;
+            console.log('Fallback: Redirecting to payment page:', redirectUrl);
+            window.location.href = redirectUrl;
+            return;
+          }
+
+          if (selectedMethod.provider === 'viva_wallet' || selectedMethod.provider === 'stripe') {
+            console.log('Creating payment intent for provider:', selectedMethod.provider);
             // Create payment intent and get checkout URL
             const paymentResponse = await fetch('/api/create-payment-intent', {
               method: 'POST',
@@ -396,19 +428,46 @@ export default function BookingFormPage({
               }),
             });
 
+            console.log('Payment intent response status:', paymentResponse.status);
+
             if (!paymentResponse.ok) {
-              const errorData = await paymentResponse.json();
+              let errorData;
+              try {
+                errorData = await paymentResponse.json();
+              } catch (e) {
+                const text = await paymentResponse.text();
+                errorData = { error: text || 'Failed to create payment checkout' };
+              }
+              console.error('Payment intent creation failed:', errorData);
               throw new Error(errorData.error || 'Failed to create payment checkout');
             }
 
             const paymentData = await paymentResponse.json();
+            console.log('Payment intent created successfully:', paymentData);
             
             // Redirect directly to Viva Wallet or Stripe checkout
             if (paymentData.checkout_url) {
               console.log('Redirecting directly to checkout:', paymentData.checkout_url);
-              window.location.href = paymentData.checkout_url;
-              return; // Exit early, redirect is happening
+              // Use window.location.replace to ensure redirect happens
+              window.location.replace(paymentData.checkout_url);
+              // Set a timeout to show error if redirect doesn't happen
+              setTimeout(() => {
+                console.warn('Redirect may have failed, user still on page');
+                setError('Redirect failed. Please try again or contact support.');
+                setSaving(false);
+              }, 3000);
+              return;
+            } else {
+              console.warn('No checkout_url in response:', paymentData);
+              throw new Error('No checkout URL received from payment provider');
             }
+          } else {
+            console.log('Payment provider not supported for direct redirect:', selectedMethod.provider);
+            // Fallback: go to payment page for other providers
+            const redirectUrl = `/booking/${routeParams.slug}/payment/${data.booking.id}`;
+            console.log('Fallback: Redirecting to payment page:', redirectUrl);
+            window.location.href = redirectUrl;
+            return;
           }
         } catch (paymentError) {
           console.error('Error creating payment checkout:', paymentError);
@@ -416,11 +475,6 @@ export default function BookingFormPage({
           setSaving(false);
           return;
         }
-        
-        // Fallback: go to payment page if checkout URL couldn't be created
-        const redirectUrl = `/booking/${routeParams.slug}/payment/${data.booking.id}`;
-        console.log('Fallback: Redirecting to payment page:', redirectUrl);
-        window.location.href = redirectUrl;
       } else if (data.booking?.id) {
         // No payment method selected, go to confirmation
         const redirectUrl = `/booking/${routeParams.slug}/confirmation/${data.booking.id}`;
