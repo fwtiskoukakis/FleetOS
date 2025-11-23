@@ -490,27 +490,33 @@ export default function PaymentMethodsPage() {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Viva Wallet Client ID / API Key
+                          Viva Wallet Client ID <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={formData.api_key}
                           onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-                          placeholder="Your Viva Wallet API Key"
+                          placeholder="Your Smart Checkout Client ID (e.g., xyz.apps.vivapayments.com)"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          This is your <strong>Smart Checkout Client ID</strong>, not the old API Key. Find it in Viva Wallet: <strong>Settings</strong> → <strong>API Access</strong> → <strong>Smart Checkout Credentials</strong>
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Viva Wallet Client Secret
+                          Viva Wallet Client Secret <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="password"
                           value={formData.api_secret}
                           onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
-                          placeholder="Your Viva Wallet Secret"
+                          placeholder="Your Smart Checkout Client Secret"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          This is your <strong>Smart Checkout Client Secret</strong> (paired with the Client ID above). It's shown only once when you generate it.
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
