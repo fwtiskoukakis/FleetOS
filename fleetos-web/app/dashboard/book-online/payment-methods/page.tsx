@@ -24,6 +24,11 @@ interface PaymentMethod {
   min_deposit_amount: number;
   display_order: number;
   organization_id?: string;
+  // Credentials (optional, loaded from database)
+  api_key_encrypted?: string;
+  api_secret_encrypted?: string;
+  merchant_id?: string;
+  webhook_secret?: string;
 }
 
 const PROVIDER_OPTIONS = [
