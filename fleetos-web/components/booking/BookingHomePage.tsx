@@ -285,12 +285,12 @@ export default function BookingHomePage({
                     <strong>Phone:</strong> <a href={`tel:${organization.phone_primary}`} className="hover:text-white">{organization.phone_primary}</a>
                   </li>
                 )}
-                {organization.email && (
+                {organization.email_primary && (
                   <li>
-                    <strong>Email:</strong> <a href={`mailto:${organization.email}`} className="hover:text-white">{organization.email}</a>
+                    <strong>Email:</strong> <a href={`mailto:${organization.email_primary}`} className="hover:text-white">{organization.email_primary}</a>
                   </li>
                 )}
-                {!organization.email && (
+                {!organization.email_primary && (
                   <li>
                     <strong>Email:</strong> <a href="mailto:support@fleetos.eu" className="hover:text-white">support@fleetos.eu</a>
                   </li>
