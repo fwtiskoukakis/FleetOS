@@ -27,17 +27,36 @@ function PaymentSuccessContent() {
       lang,
     });
 
-    // If eventId is present, it's a failure
-    if (eventId) {
+    // According to Viva Wallet documentation:
+    // - Success redirect: Has 't' (transaction ID), 's' (order code), 'lang', 'eci'
+    // - Failure redirect: Has 's' (order code), 'lang', 'eventId' (but NO 't')
+    // The presence of 't' (transaction ID) indicates successful payment
+    
+    // If transaction ID is present, payment was successful - proceed with lookup
+    if (transactionId && orderCode) {
+      console.log('Transaction ID present, payment successful. Looking up booking...');
+      lookupBookingByOrderCode(orderCode, transactionId);
+      return;
+    }
+
+    // If no transaction ID but eventId is present, it's a failure
+    if (!transactionId && eventId) {
+      console.error('Payment failed - no transaction ID but eventId present:', eventId);
       setError(`Payment failed. Error code: ${eventId}`);
       setLoading(false);
       return;
     }
 
-    // If order code is present, look up the booking
-    if (orderCode) {
-      lookupBookingByOrderCode(orderCode, transactionId || '');
-    } else {
+    // If no transaction ID and no eventId, check if we at least have order code
+    if (!transactionId && orderCode) {
+      console.warn('No transaction ID but order code present. Attempting lookup anyway...');
+      lookupBookingByOrderCode(orderCode, '');
+      return;
+    }
+
+    // If no order code at all, show error
+    if (!orderCode) {
+      console.error('No order code or transaction ID provided');
       setError('No order code provided. Please contact support.');
       setLoading(false);
     }
