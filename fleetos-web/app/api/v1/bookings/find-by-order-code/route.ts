@@ -139,8 +139,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract organization slug
-    const orgSlug = booking.organization?.slug || 
-                    (Array.isArray(booking.organization) ? booking.organization[0]?.slug : null);
+    // Handle both single object and array responses from Supabase
+    let orgSlug: string | null = null;
+    if (booking.organization) {
+      if (Array.isArray(booking.organization) && booking.organization.length > 0) {
+        orgSlug = booking.organization[0]?.slug || null;
+      } else if (typeof booking.organization === 'object' && 'slug' in booking.organization) {
+        orgSlug = (booking.organization as { slug: string }).slug;
+      }
+    }
 
     if (!orgSlug) {
       console.error('Organization slug not found for booking:', booking.id);
