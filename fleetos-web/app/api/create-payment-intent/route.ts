@@ -372,7 +372,8 @@ async function createVivaWalletCheckout(params: {
 
   // Step 2: Create payment order
   // Viva Wallet API endpoint for creating orders
-  const orderUrl = `${vivaApiBaseUrl}/orders`;
+  // According to Smart Checkout documentation: /checkout/v2/orders
+  const orderUrl = `${vivaApiBaseUrl}/checkout/v2/orders`;
   
   // Viva Wallet order creation payload
   // Note: Viva Wallet API format may vary - adjust based on actual API documentation
