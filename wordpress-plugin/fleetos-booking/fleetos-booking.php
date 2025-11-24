@@ -178,48 +178,10 @@ class FleetOS_Booking {
     
     /**
      * Add inline scripts
+     * Note: Form handling is now in frontend.js for better organization
      */
     public function add_inline_scripts() {
-        $options = get_option('fleetos_booking_options');
-        ?>
-        <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            // Handle form submission
-            $('.fleetos-booking-form').on('submit', function(e) {
-                e.preventDefault();
-                
-                const form = $(this);
-                const formData = {
-                    pickup_date: form.find('[name="pickup_date"]').val(),
-                    pickup_time: form.find('[name="pickup_time"]').val(),
-                    pickup_location_id: form.find('[name="pickup_location_id"]').val(),
-                    dropoff_date: form.find('[name="dropoff_date"]').val(),
-                    dropoff_time: form.find('[name="dropoff_time"]').val(),
-                    dropoff_location_id: form.find('[name="dropoff_location_id"]').val(),
-                };
-                
-                // Validate form
-                if (!formData.pickup_date || !formData.dropoff_date || !formData.pickup_location_id || !formData.dropoff_location_id) {
-                    alert('<?php _e('Please fill in all required fields.', 'fleetos-booking'); ?>');
-                    return;
-                }
-                
-                // Validate dates
-                if (new Date(formData.pickup_date) >= new Date(formData.dropoff_date)) {
-                    alert('<?php _e('Dropoff date must be after pickup date.', 'fleetos-booking'); ?>');
-                    return;
-                }
-                
-                // Build redirect URL
-                const orgSlug = '<?php echo esc_js($options['organization_slug'] ?? ''); ?>';
-                const baseUrl = '<?php echo esc_js($options['redirect_url'] ?? 'https://fleetos.eu/booking'); ?>';
-                const params = new URLSearchParams(formData);
-                
-                window.location.href = baseUrl + '/' + orgSlug + '/search?' + params.toString();
-            });
-        });
-        </script>
-        <?php
+        // Inline scripts removed - all functionality moved to frontend.js
     }
     
     /**

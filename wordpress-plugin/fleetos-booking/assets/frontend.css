@@ -1,89 +1,398 @@
 /**
- * FleetOS Booking Form - Frontend Styles
+ * FleetOS Booking Form - Modern Commercial Design
  */
 
+.fleetos-booking-form-wrapper {
+    position: relative;
+    width: 100%;
+    padding: 30px 0;
+    margin: 20px 0;
+}
+
 .fleetos-booking-form-container {
-    max-width: 600px;
+    max-width: 720px;
     margin: 0 auto;
-    padding: 20px;
-    background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 32px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 24px;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.12),
+        0 8px 24px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Fading edges effect */
+.fleetos-booking-form-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 24px;
+    padding: 2px;
+    background: linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.1) 0%,
+        rgba(147, 51, 234, 0.1) 50%,
+        rgba(236, 72, 153, 0.1) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.6;
 }
 
 .fleetos-booking-form {
     display: flex;
     flex-direction: column;
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Vehicle Type Selector */
+.fleetos-vehicle-type-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.fleetos-vehicle-type-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 12px;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.fleetos-vehicle-type-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(147, 51, 234, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.fleetos-vehicle-type-item:hover {
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.15);
+}
+
+.fleetos-vehicle-type-item:hover::before {
+    opacity: 1;
+}
+
+.fleetos-vehicle-type-item.active {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    color: white;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+    transform: translateY(-2px);
+}
+
+.fleetos-vehicle-type-item.active::before {
+    opacity: 0;
+}
+
+.fleetos-vehicle-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s;
+}
+
+.fleetos-vehicle-type-item:hover .fleetos-vehicle-icon {
+    transform: scale(1.1);
+}
+
+.fleetos-vehicle-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.fleetos-vehicle-type-item.active .fleetos-vehicle-icon svg {
+    filter: brightness(0) invert(1);
+}
+
+.fleetos-vehicle-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #374151;
+    transition: color 0.3s;
+}
+
+.fleetos-vehicle-type-item.active .fleetos-vehicle-label {
+    color: white;
+}
+
+/* Compact Form */
+.fleetos-form-compact {
+    display: flex;
+    flex-direction: column;
     gap: 20px;
 }
 
-.fleetos-form-row {
+.fleetos-form-row-compact {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 16px;
 }
 
-@media (max-width: 768px) {
-    .fleetos-form-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-.fleetos-form-group {
+.fleetos-form-group-compact {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.fleetos-form-group label {
+.fleetos-label-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
     font-weight: 600;
-    color: #333;
-    font-size: 14px;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.fleetos-form-group .required {
-    color: #dc2626;
+.fleetos-label-compact svg {
+    width: 16px;
+    height: 16px;
+    color: #6366f1;
 }
 
-.fleetos-form-group input,
-.fleetos-form-group select {
-    padding: 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 16px;
-    transition: border-color 0.2s;
-}
-
-.fleetos-form-group input:focus,
-.fleetos-form-group select:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.fleetos-submit-button {
+.fleetos-input-compact {
     width: 100%;
-    padding: 14px 24px;
-    background: #2563eb;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 15px;
+    color: #111827;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.fleetos-input-compact:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.fleetos-input-compact::placeholder {
+    color: #9ca3af;
+}
+
+.fleetos-date-time-group {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 8px;
+}
+
+/* Checkbox Toggle */
+.fleetos-dropoff-location-toggle {
+    padding: 12px 0;
+}
+
+.fleetos-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.fleetos-checkbox-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.fleetos-checkbox-custom {
+    width: 44px;
+    height: 24px;
+    background: #e5e7eb;
+    border-radius: 12px;
+    position: relative;
+    transition: background 0.3s;
+    flex-shrink: 0;
+}
+
+.fleetos-checkbox-custom::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.fleetos-checkbox-label input[type="checkbox"]:checked + .fleetos-checkbox-custom {
+    background: #3b82f6;
+}
+
+.fleetos-checkbox-label input[type="checkbox"]:checked + .fleetos-checkbox-custom::after {
+    transform: translateX(20px);
+}
+
+.fleetos-checkbox-text {
+    font-size: 14px;
+    color: #4b5563;
+    font-weight: 500;
+}
+
+.fleetos-dropoff-location-wrapper {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Submit Button */
+.fleetos-submit-button-modern {
+    width: 100%;
+    padding: 18px 32px;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 14px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+    margin-top: 8px;
+    text-transform: uppercase;
 }
 
-.fleetos-submit-button:hover {
-    background: #1d4ed8;
+.fleetos-submit-button-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
 }
 
-.fleetos-submit-button:active {
-    background: #1e40af;
+.fleetos-submit-button-modern:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
 }
 
-.fleetos-submit-button:disabled {
+.fleetos-submit-button-modern svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s;
+}
+
+.fleetos-submit-button-modern:hover svg {
+    transform: translateX(4px);
+}
+
+.fleetos-submit-button-modern:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .fleetos-booking-form-wrapper {
+        padding: 20px 0;
+    }
+    
+    .fleetos-booking-form-container {
+        padding: 24px 20px;
+        border-radius: 20px;
+        margin: 0 16px;
+    }
+    
+    .fleetos-vehicle-type-selector {
+        gap: 8px;
+    }
+    
+    .fleetos-vehicle-type-item {
+        padding: 16px 8px;
+    }
+    
+    .fleetos-vehicle-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .fleetos-vehicle-label {
+        font-size: 11px;
+    }
+    
+    .fleetos-form-row-compact {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .fleetos-date-time-group {
+        grid-template-columns: 1.5fr 1fr;
+    }
+    
+    .fleetos-submit-button-modern {
+        padding: 16px 24px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .fleetos-booking-form-container {
+        padding: 20px 16px;
+    }
+    
+    .fleetos-vehicle-type-item {
+        padding: 14px 6px;
+    }
+    
+    .fleetos-vehicle-icon {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .fleetos-vehicle-label {
+        font-size: 10px;
+    }
 }
 
