@@ -4,8 +4,8 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +55,7 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   function handleTabPress(tab: TabItem) {
     if (onTabPress) {
@@ -72,14 +73,14 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: colors.background }]}>
       <BlurView 
         intensity={65} 
         tint={colors.isDark ? "dark" : "light"} 
         style={[
           styles.blurContainer, 
           { 
-            backgroundColor: colors.isDark ? 'rgba(34, 34, 34, 0.85)' : 'rgba(255, 255, 255, 0.18)',
+            backgroundColor: colors.isDark ? 'rgba(34, 34, 34, 0.96)' : 'rgba(255, 255, 255, 0.96)',
             borderColor: colors.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.35)',
           }
         ]}
@@ -94,12 +95,15 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
                 style={styles.tab}
                 onPress={() => handleTabPress(tab)}
                 activeOpacity={0.65}
+                accessibilityRole="tab"
+                accessibilityLabel={tab.label}
+                accessibilityState={{ selected: active }}
               >
                 {active && <View style={[styles.activeBackground, { backgroundColor: colors.isDark ? 'rgba(14, 165, 233, 0.25)' : 'rgba(14, 165, 233, 0.18)' }]} />}
                 <View style={styles.tabContent}>
                   <Ionicons 
                     name={tab.icon} 
-                    size={active ? 26 : 24} 
+                    size={22}
                     color={active ? colors.primary : colors.textSecondary} 
                     style={styles.icon}
                   />
@@ -121,24 +125,21 @@ export function BottomTabBar({ onTabPress }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 14,
-    paddingHorizontal: 16,
+    flexShrink: 0,
+    paddingTop: 6,
+    paddingHorizontal: 12,
     backgroundColor: 'transparent',
     zIndex: 10,
   },
   blurContainer: {
-    borderRadius: 36,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
-    elevation: 14,
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 6,
   },
   glassEdge: {
     position: 'absolute',
@@ -150,9 +151,9 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 4,
     paddingHorizontal: 6,
-    minHeight: 74,
+    minHeight: 60,
     alignItems: 'center',
     justifyContent: 'space-around',
   },
@@ -160,7 +161,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 5,
+    minHeight: 48,
     paddingHorizontal: 2,
     position: 'relative',
   },
@@ -170,19 +172,19 @@ const styles = StyleSheet.create({
     left: 6,
     right: 6,
     bottom: 6,
-    borderRadius: 22,
+    borderRadius: 17,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
     zIndex: 1,
   },
   icon: {
     marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: 'rgba(60, 60, 67, 0.55)',
     fontWeight: '500',
     textAlign: 'center',

@@ -566,14 +566,14 @@ export default function HomeScreen() {
             <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Παραλαβή:</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
-              {new Date(contract.rentalPeriod.pickupDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.pickupTime}
+              {new Date(contract.rentalPeriod.pickupDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.pickupTime?.split(':').slice(0, 2).join(':')}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Επιστροφή:</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
-              {new Date(contract.rentalPeriod.dropoffDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.dropoffTime}
+              {new Date(contract.rentalPeriod.dropoffDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })} {contract.rentalPeriod.dropoffTime?.split(':').slice(0, 2).join(':')}
             </Text>
           </View>
           <View style={styles.detailRow}>
@@ -619,7 +619,7 @@ export default function HomeScreen() {
           {renderStatsCard('car-outline', 'Σύνολο', fleetAvailability.totalVehicles, colors.text, () => router.push('/(tabs)/cars'))}
           {renderStatsCard('checkmark-circle', 'Διαθέσιμα', fleetAvailability.availableVehicles, Colors.success)}
           {renderStatsCard('time-outline', 'Ενοικιαζόμενα', fleetAvailability.rentedVehicles, Colors.info)}
-          {renderStatsCard('warning', 'Κατάσταση', fleetAvailability.maintenanceVehicles, '#FF9500')}
+          {renderStatsCard('warning', 'Σε συντήρηση', fleetAvailability.maintenanceVehicles, '#FF9500')}
         </View>
       </View>
     );
@@ -707,7 +707,7 @@ export default function HomeScreen() {
         <View style={[styles.activityCard, { backgroundColor: colors.card }]}>
           {activities.length === 0 ? (
             <View style={styles.noActivityContainer}>
-              <Ionicons name="calendar-outline" size={32} color={colors.textSecondary} />
+              <Ionicons name="checkmark-circle-outline" size={22} color={Colors.success} />
               <Text style={[styles.noActivityText, { color: colors.textSecondary }]}>
                 {activityView === 'today' ? 'Δεν υπάρχουν εκκρεμότητες σήμερα' : 'Δεν υπάρχουν εκκρεμότητες αυτή την εβδομάδα'}
               </Text>
@@ -835,7 +835,7 @@ export default function HomeScreen() {
                   <View style={styles.revenueItem}>
                     <Ionicons name="trending-up" size={18} color={Colors.success} />
                     <View style={styles.revenueTextContainer}>
-                      <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>Συνολικά</Text>
+                      <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>Συμφωνημένα μισθώματα</Text>
                       <Text style={[styles.revenueValue, { color: colors.text }]}>€{stats.totalRevenue.toLocaleString()}</Text>
                     </View>
                   </View>
@@ -843,7 +843,7 @@ export default function HomeScreen() {
                   <View style={styles.revenueItem}>
                     <Ionicons name="calendar" size={18} color={colors.primary} />
                     <View style={styles.revenueTextContainer}>
-                      <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>Αυτόν τον Μήνα</Text>
+                      <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>Έναρξη αυτόν τον μήνα</Text>
                       <Text style={[styles.revenueValue, { color: colors.text }]}>€{stats.revenueThisMonth.toLocaleString()}</Text>
                     </View>
                   </View>
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 150,
+    paddingBottom: 88,
     flexGrow: 1,
   },
   // Stats Section
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.borderLight,
   },
   revenueLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.textSecondary,
     marginBottom: 2,
     fontWeight: '500',
@@ -1443,16 +1443,18 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   noActivityContainer: {
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xl * 2,
-    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
   },
   noActivityText: {
-    marginTop: Spacing.md,
+    flex: 1,
     fontSize: 13,
     color: Colors.textSecondary,
-    textAlign: 'center',
+    textAlign: 'left',
     fontWeight: '500',
   },
   viewAllButton: {
