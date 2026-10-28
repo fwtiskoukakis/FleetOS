@@ -31,12 +31,12 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
   const [showOptions, setShowOptions] = useState(false);
   const [options, setOptions] = useState({
     language: 'el' as 'el' | 'en',
-    includePhotos: true,
+    includePhotos: false,
     includeDamages: true,
     includeQRCode: false,
   });
 
-  const handleGeneratePDF = async (generationOptions = options) => {
+  const handleGeneratePDF = async (generationOptions = options, appendix = false) => {
     try {
       setIsGenerating(true);
       setShowOptions(false);
@@ -44,7 +44,7 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
       const pdfUri = await PDFContractProService.generateProfessionalContract(
         contract,
         user,
-        generationOptions
+        { ...generationOptions, documentKind: appendix ? 'appendix' : 'contract' }
       );
 
       // On web, PDF opens in new window automatically
@@ -54,8 +54,8 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
       }
 
       Alert.alert(
-        hasApprovedTerms ? 'Το PDF δημιουργήθηκε' : 'Δημιουργήθηκε προσχέδιο PDF',
-        !hasApprovedTerms ? 'Η μορφοποίηση ολοκληρώθηκε. Εκκρεμεί η πίσω όψη του έντυπου συμβολαίου για να ενσωματωθούν οι πλήρεις όροι.' : pdfUri === 'web-print-initiated'
+        appendix ? 'Το παράρτημα δημιουργήθηκε' : hasApprovedTerms ? 'Το PDF δημιουργήθηκε' : 'Δημιουργήθηκε προσχέδιο PDF',
+        !appendix && !hasApprovedTerms ? 'Εκκρεμεί καταχώριση των πλήρων όρων της εταιρείας για το συμβόλαιο.' : pdfUri === 'web-print-initiated'
           ? 'Το PDF ανοίχτηκε σε νέο παράθυρο! Μπορείτε να το εκτυπώσετε ή να το αποθηκεύσετε ως PDF.'
           : 'Το PDF δημιουργήθηκε με επιτυχία και είναι έτοιμο για κοινοποίηση!'
       );
@@ -71,20 +71,9 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
   };
 
   const handleSharePDF = async (uri: string) => {
-    try {
-      await PDFContractProService.sharePDF(uri, contract.id);
-    } catch (error) {
-      console.error('Error sharing PDF:', error);
-      Alert.alert('Σφάλμα', 'Αποτυχία κοινοποίησης PDF');
-    }
+    await PDFContractProService.sharePDF(uri, contract.contractNumber || contract.id);
   };
 
-  const toggleOption = (key: keyof typeof options) => {
-    setOptions(prev => ({
-      ...prev,
-      [key]: typeof prev[key] === 'boolean' ? !prev[key] : prev[key],
-    }));
-  };
 
   return (
     <View style={[styles.container, style]}>
@@ -113,8 +102,8 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
         <TouchableOpacity
           style={styles.quickButton}
           onPress={() => {
-            setOptions({ language: 'el', includePhotos: true, includeDamages: true, includeQRCode: false });
-            handleGeneratePDF({ language: 'el', includePhotos: true, includeDamages: true, includeQRCode: false });
+            setOptions({ language: 'el', includePhotos: false, includeDamages: true, includeQRCode: false });
+            handleGeneratePDF({ language: 'el', includePhotos: false, includeDamages: true, includeQRCode: false });
           }}
           disabled={isGenerating}
         >
@@ -125,8 +114,8 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
         <TouchableOpacity
           style={styles.quickButton}
           onPress={() => {
-            setOptions({ language: 'en', includePhotos: true, includeDamages: true, includeQRCode: false });
-            handleGeneratePDF({ language: 'en', includePhotos: true, includeDamages: true, includeQRCode: false });
+            setOptions({ language: 'en', includePhotos: false, includeDamages: true, includeQRCode: false });
+            handleGeneratePDF({ language: 'en', includePhotos: false, includeDamages: true, includeQRCode: false });
           }}
           disabled={isGenerating}
         >
@@ -134,6 +123,15 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
           <Text style={styles.quickButtonText}>English Version</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={[styles.quickButton, { marginTop: 10 }]}
+        onPress={() => handleGeneratePDF(options, true)}
+        disabled={isGenerating}
+      >
+        <Ionicons name="images-outline" size={18} color={Colors.primary} />
+        <Text style={styles.quickButtonText}>Παράρτημα φωτογραφιών και ζημιών PDF</Text>
+      </TouchableOpacity>
 
       {/* Options Modal */}
       <Modal
@@ -199,79 +197,15 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
                 </View>
               </View>
 
-              {/* Include Options */}
               <View style={styles.optionSection}>
                 <Text style={styles.optionSectionTitle}>Περιεχόμενο</Text>
-
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => toggleOption('includePhotos')}
-                >
-                  <View style={styles.optionLeft}>
-                    <Ionicons
-                      name={options.includePhotos ? 'camera' : 'camera-outline'}
-                      size={24}
-                      color={options.includePhotos ? Colors.success : Colors.textSecondary}
-                    />
-                    <View style={styles.optionInfo}>
-                      <Text style={styles.optionTitle}>Φωτογραφίες και έγγραφα</Text>
-                      <Text style={styles.optionDescription}>
-                        Συμπερίληψη {contract.photoUris.length} φωτογραφιών
-                      </Text>
-                    </View>
-                  </View>
-                  <View
-                    style={[
-                      styles.toggle,
-                      options.includePhotos && styles.toggleActive,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.toggleThumb,
-                        options.includePhotos && styles.toggleThumbActive,
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => toggleOption('includeDamages')}
-                >
-                  <View style={styles.optionLeft}>
-                    <Ionicons
-                      name={options.includeDamages ? 'warning' : 'warning-outline'}
-                      size={24}
-                      color={options.includeDamages ? Colors.warning : Colors.textSecondary}
-                    />
-                    <View style={styles.optionInfo}>
-                      <Text style={styles.optionTitle}>Καταγεγραμμένες Ζημιές</Text>
-                      <Text style={styles.optionDescription}>
-                        {contract.damagePoints.length} {contract.damagePoints.length === 1 ? 'ζημιά' : 'ζημιές'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View
-                    style={[
-                      styles.toggle,
-                      options.includeDamages && styles.toggleActive,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.toggleThumb,
-                        options.includeDamages && styles.toggleThumbActive,
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
+                <Text style={styles.optionDescription}>Στοιχεία και υπογραφές στην πρώτη σελίδα, πλήρεις όροι στη δεύτερη. Οι φωτογραφίες και οι αναλυτικές ζημιές εξάγονται από το ξεχωριστό κουμπί παραρτήματος.</Text>
               </View>
 
               {/* Contract Info Preview */}
               <View style={styles.previewSection}>
                 <Text style={styles.previewTitle}>Προεπισκόπηση</Text>
-                {!hasApprovedTerms && <Text style={styles.optionDescription}>Προσχέδιο: εκκρεμούν οι πλήρεις όροι από την πίσω όψη του έντυπου συμβολαίου.</Text>}
+                {!hasApprovedTerms && <Text style={styles.optionDescription}>Προσχέδιο: εκκρεμεί καταχώριση των πλήρων όρων της εταιρείας.</Text>}
                 <View style={styles.previewCard}>
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Ενοικιαστής:</Text>
