@@ -78,6 +78,8 @@ export interface User {
 
 export interface Contract {
   id: string;
+  contractNumber?: string;
+  organizationId?: string;
   renterInfo: RenterInfo;
   rentalPeriod: RentalPeriod;
   carInfo: CarInfo;
