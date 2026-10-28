@@ -428,7 +428,7 @@ export function ContextAwareFab({
             ],
           }}
         >
-          <FleetOSIcon variant="icon" size={36} color="#FFFFFF" />
+          <FleetOSIcon variant="icon" size={28} color="#FFFFFF" />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -438,15 +438,15 @@ export function ContextAwareFab({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 120, // Higher above bottom tab bar
-    right: 20,
+    bottom: 16, // The tab bar now occupies its own layout space below the content.
+    right: 16,
     zIndex: 9999, // Above navbar (navbar is z-index: 10)
     elevation: 9999, // For Android
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
