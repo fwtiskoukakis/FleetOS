@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Contract, User } from '../models/contract.interface';
+import { APPROVED_CONTRACT_TERMS } from '../config/contract-terms';
 import { PDFContractProService } from '../services/pdf-contract-pro.service';
 import { Colors, Typography, Spacing, Shadows, BorderRadius, Glass } from '../utils/design-system';
 
@@ -25,16 +26,17 @@ interface PDFContractGeneratorProps {
  * Beautiful UI with options for language, photos, and sharing
  */
 export function PDFContractGenerator({ contract, user, style }: PDFContractGeneratorProps) {
+  const hasApprovedTerms = !!(contract.organizationId && APPROVED_CONTRACT_TERMS[contract.organizationId]?.paragraphs.length);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [options, setOptions] = useState({
     language: 'el' as 'el' | 'en',
     includePhotos: true,
     includeDamages: true,
-    includeQRCode: true,
+    includeQRCode: false,
   });
 
-  const handleGeneratePDF = async () => {
+  const handleGeneratePDF = async (generationOptions = options) => {
     try {
       setIsGenerating(true);
       setShowOptions(false);
@@ -42,7 +44,7 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
       const pdfUri = await PDFContractProService.generateProfessionalContract(
         contract,
         user,
-        options
+        generationOptions
       );
 
       // On web, PDF opens in new window automatically
@@ -50,10 +52,10 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
       if (pdfUri !== 'web-print-initiated') {
         await handleSharePDF(pdfUri);
       }
-      
+
       Alert.alert(
-        'Επιτυχία! 🎉',
-        pdfUri === 'web-print-initiated' 
+        hasApprovedTerms ? 'Το PDF δημιουργήθηκε' : 'Δημιουργήθηκε προσχέδιο PDF',
+        !hasApprovedTerms ? 'Η μορφοποίηση ολοκληρώθηκε. Εκκρεμεί η πίσω όψη του έντυπου συμβολαίου για να ενσωματωθούν οι πλήρεις όροι.' : pdfUri === 'web-print-initiated'
           ? 'Το PDF ανοίχτηκε σε νέο παράθυρο! Μπορείτε να το εκτυπώσετε ή να το αποθηκεύσετε ως PDF.'
           : 'Το PDF δημιουργήθηκε με επιτυχία και είναι έτοιμο για κοινοποίηση!'
       );
@@ -61,7 +63,7 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
       console.error('Error generating PDF:', error);
       Alert.alert(
         'Σφάλμα',
-        'Αποτυχία δημιουργίας PDF. Παρακαλώ δοκιμάστε ξανά.'
+        error instanceof Error ? error.message : 'Αποτυχία δημιουργίας PDF. Παρακαλώ δοκιμάστε ξανά.'
       );
     } finally {
       setIsGenerating(false);
@@ -111,8 +113,8 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
         <TouchableOpacity
           style={styles.quickButton}
           onPress={() => {
-            setOptions({ language: 'el', includePhotos: true, includeDamages: true, includeQRCode: true });
-            handleGeneratePDF();
+            setOptions({ language: 'el', includePhotos: true, includeDamages: true, includeQRCode: false });
+            handleGeneratePDF({ language: 'el', includePhotos: true, includeDamages: true, includeQRCode: false });
           }}
           disabled={isGenerating}
         >
@@ -123,8 +125,8 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
         <TouchableOpacity
           style={styles.quickButton}
           onPress={() => {
-            setOptions({ language: 'en', includePhotos: true, includeDamages: true, includeQRCode: true });
-            handleGeneratePDF();
+            setOptions({ language: 'en', includePhotos: true, includeDamages: true, includeQRCode: false });
+            handleGeneratePDF({ language: 'en', includePhotos: true, includeDamages: true, includeQRCode: false });
           }}
           disabled={isGenerating}
         >
@@ -212,7 +214,7 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
                       color={options.includePhotos ? Colors.success : Colors.textSecondary}
                     />
                     <View style={styles.optionInfo}>
-                      <Text style={styles.optionTitle}>Φωτογραφίες Οχήματος</Text>
+                      <Text style={styles.optionTitle}>Φωτογραφίες και έγγραφα</Text>
                       <Text style={styles.optionDescription}>
                         Συμπερίληψη {contract.photoUris.length} φωτογραφιών
                       </Text>
@@ -264,43 +266,12 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
                     />
                   </View>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => toggleOption('includeQRCode')}
-                >
-                  <View style={styles.optionLeft}>
-                    <Ionicons
-                      name={options.includeQRCode ? 'qr-code' : 'qr-code-outline'}
-                      size={24}
-                      color={options.includeQRCode ? Colors.info : Colors.textSecondary}
-                    />
-                    <View style={styles.optionInfo}>
-                      <Text style={styles.optionTitle}>QR Code Επαλήθευσης</Text>
-                      <Text style={styles.optionDescription}>
-                        Για ψηφιακό έλεγχο συμβολαίου
-                      </Text>
-                    </View>
-                  </View>
-                  <View
-                    style={[
-                      styles.toggle,
-                      options.includeQRCode && styles.toggleActive,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.toggleThumb,
-                        options.includeQRCode && styles.toggleThumbActive,
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
               </View>
 
               {/* Contract Info Preview */}
               <View style={styles.previewSection}>
                 <Text style={styles.previewTitle}>Προεπισκόπηση</Text>
+                {!hasApprovedTerms && <Text style={styles.optionDescription}>Προσχέδιο: εκκρεμούν οι πλήρεις όροι από την πίσω όψη του έντυπου συμβολαίου.</Text>}
                 <View style={styles.previewCard}>
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>Ενοικιαστής:</Text>
@@ -326,7 +297,7 @@ export function PDFContractGenerator({ contract, user, style }: PDFContractGener
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={styles.generateButton}
-                onPress={handleGeneratePDF}
+                onPress={() => handleGeneratePDF()}
                 disabled={isGenerating}
               >
                 {isGenerating ? (
@@ -353,7 +324,7 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: Spacing.md,
   },
-  
+
   // Main Button
   mainButton: {
     flexDirection: 'row',
@@ -443,7 +414,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  
+
   // Language
   languageButtons: {
     flexDirection: 'row',

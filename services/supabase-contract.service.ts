@@ -37,7 +37,7 @@ export class SupabaseContractService {
   /**
    * Get a single contract by ID
    */
-  static async getContractById(id: string): Promise<Contract | null> {
+  static async getContractById(id: string, includePhotos = true): Promise<Contract | null> {
     try {
       const { data: contract, error } = await supabase
         .from('contracts')
@@ -53,7 +53,7 @@ export class SupabaseContractService {
         return null;
       }
 
-      return await this.mapSupabaseToContractAsync(contract);
+      return includePhotos ? await this.mapSupabaseToContractAsync(contract) : this.mapSupabaseToContract(contract);
     } catch (error) {
       console.error('Error in getContractById:', error);
       return null;
@@ -175,6 +175,8 @@ export class SupabaseContractService {
 
     return {
       id: data.id,
+      contractNumber: data.contract_number || undefined,
+      organizationId: data.organization_id || undefined,
       userId: data.user_id,
       
       renterInfo: {
@@ -197,8 +199,8 @@ export class SupabaseContractService {
         dropoffLocation: data.dropoff_location,
         isDifferentDropoffLocation: data.is_different_dropoff_location || false,
         totalCost: parseFloat(data.total_cost) || 0,
-        depositAmount: parseFloat(data.deposit_amount) || 0,
-        insuranceCost: parseFloat(data.insurance_cost) || 0,
+        depositAmount: data.deposit_amount == null ? undefined : Number(data.deposit_amount),
+        insuranceCost: data.insurance_cost == null ? undefined : Number(data.insurance_cost),
       },
       
       carInfo: {
@@ -216,9 +218,9 @@ export class SupabaseContractService {
         fuelLevel: data.fuel_level,
         mileage: data.car_mileage,
         insuranceType: data.insurance_type,
-        exteriorCondition: data.exterior_condition || 'good',
-        interiorCondition: data.interior_condition || 'good',
-        mechanicalCondition: data.mechanical_condition || 'good',
+        exteriorCondition: data.exterior_condition || '',
+        interiorCondition: data.interior_condition || '',
+        mechanicalCondition: data.mechanical_condition || '',
         notes: data.condition_notes,
       },
       
@@ -257,6 +259,8 @@ export class SupabaseContractService {
 
     return {
       id: data.id,
+      contractNumber: data.contract_number || undefined,
+      organizationId: data.organization_id || undefined,
       userId: data.user_id,
       
       renterInfo: {
@@ -279,8 +283,8 @@ export class SupabaseContractService {
         dropoffLocation: data.dropoff_location,
         isDifferentDropoffLocation: data.is_different_dropoff_location || false,
         totalCost: parseFloat(data.total_cost) || 0,
-        depositAmount: parseFloat(data.deposit_amount) || 0,
-        insuranceCost: parseFloat(data.insurance_cost) || 0,
+        depositAmount: data.deposit_amount == null ? undefined : Number(data.deposit_amount),
+        insuranceCost: data.insurance_cost == null ? undefined : Number(data.insurance_cost),
       },
       
       carInfo: {
@@ -298,9 +302,9 @@ export class SupabaseContractService {
         fuelLevel: data.fuel_level,
         mileage: data.car_mileage,
         insuranceType: data.insurance_type,
-        exteriorCondition: data.exterior_condition || 'good',
-        interiorCondition: data.interior_condition || 'good',
-        mechanicalCondition: data.mechanical_condition || 'good',
+        exteriorCondition: data.exterior_condition || '',
+        interiorCondition: data.interior_condition || '',
+        mechanicalCondition: data.mechanical_condition || '',
         notes: data.condition_notes,
       },
       
