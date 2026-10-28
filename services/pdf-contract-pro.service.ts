@@ -79,7 +79,7 @@ export class PDFContractProService {
         };
       }
       const media: PDFMedia = { photos: [], clientSignature: '', agentSignature: '' };
-      if (options.includePhotos !== false) {
+      if (options.documentKind === 'appendix') {
         // A failed query must stop export, not silently produce a contract missing evidence.
         const { data: photos, error } = await supabase.from('contract_photos').select('id,photo_url,description,created_at')
           .eq('contract_id', current.id).order('created_at', { ascending: true }).order('id', { ascending: true });
@@ -90,7 +90,7 @@ export class PDFContractProService {
         }
       }
       for (const [key, uri] of [['clientSignature', current.clientSignature], ['agentSignature', issuer.signatureUrl]] as const) {
-        if (uri) {
+        if (uri && options.documentKind !== 'appendix') {
           try { media[key] = await embedImage(uri); }
           catch { throw new Error('Δεν φορτώθηκε μία από τις καταγεγραμμένες υπογραφές. Δοκιμάστε ξανά.'); }
         }
